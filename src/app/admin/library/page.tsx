@@ -82,7 +82,7 @@ export default async function LibraryPage({ searchParams }: Props) {
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center gap-4 rounded-lg border p-3 hover:bg-accent/50 transition-colors"
+            className="relative flex items-center gap-4 rounded-lg border p-3 hover:bg-accent/50 transition-colors"
           >
             <div className="relative h-16 w-12 flex-shrink-0 overflow-hidden rounded">
               <Image

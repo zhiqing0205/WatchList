@@ -41,7 +41,7 @@ export default function PublicLayout({
         </div>
       </header>
       <main className="flex-1">{children}</main>
-      <footer className="border-t py-6">
+      <footer className="border-t bg-background/80 backdrop-blur-sm py-6">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           追剧清单 &copy; {new Date().getFullYear()}
         </div>

@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
-import { getMediaItems, getAllTags } from "@/app/admin/_actions/media";
+import { getMediaItemsWithProgress, getAllTags } from "@/app/admin/_actions/media";
 import { MediaGrid } from "@/components/media-card";
 import { FilterBar } from "@/components/filter-bar";
 import { Pagination } from "@/components/pagination";
@@ -22,7 +22,7 @@ export default async function MediaListPage({ searchParams }: Props) {
   const mediaType = params.type || undefined;
 
   const [{ items, totalPages }, tags] = await Promise.all([
-    getMediaItems({ status, mediaType, page, limit: 20, visibleOnly: true }),
+    getMediaItemsWithProgress({ status, mediaType, page, limit: 20, visibleOnly: true }),
     getAllTags(),
   ]);
 

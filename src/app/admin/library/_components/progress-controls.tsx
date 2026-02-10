@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Check, Eye, Minus } from "lucide-react";
+import { Loader2, Plus, Check, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -147,7 +146,7 @@ export function TvProgressControl({
 
       {/* Expandable episode picker */}
       {showPicker && (
-        <div className="rounded-md border bg-popover p-2 shadow-md">
+        <div className="absolute right-12 top-full z-20 mt-1 w-80 max-w-[90vw] rounded-md border bg-popover p-3 shadow-lg">
           {/* Season selector */}
           {(progress.totalSeasons || 1) > 1 && (
             <div className="mb-2 flex flex-wrap gap-1">
@@ -171,14 +170,14 @@ export function TvProgressControl({
           )}
           {/* Episode grid */}
           {totalEpisodes > 0 && (
-            <div className="flex flex-wrap gap-1">
+            <div className="grid grid-cols-10 gap-1">
               {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map(
                 (ep) => (
                   <button
                     key={ep}
                     onClick={() => handleSetEpisode(ep)}
                     disabled={loading}
-                    className={`flex h-6 w-6 items-center justify-center rounded text-xs font-medium transition-colors ${
+                    className={`flex h-7 w-full items-center justify-center rounded text-xs font-medium transition-colors ${
                       ep <= episode
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground hover:bg-accent"

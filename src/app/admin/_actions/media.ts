@@ -87,10 +87,11 @@ export async function addMediaFromTmdb(
   if (details.genres && details.genres.length > 0) {
     const tagIds: number[] = [];
     for (const genre of details.genres) {
-      const slug = genre.name
+      const rawSlug = genre.name
         .toLowerCase()
         .replace(/\s+/g, "-")
         .replace(/[^\w\-]/g, "");
+      const slug = rawSlug || `genre-${genre.id}`;
       const existing_tag = await db
         .select()
         .from(tags)
@@ -102,7 +103,7 @@ export async function addMediaFromTmdb(
       } else {
         const [newTag] = await db
           .insert(tags)
-          .values({ name: genre.name, slug: slug || `genre-${genre.id}`, color: "#6366f1" })
+          .values({ name: genre.name, slug, color: "#6366f1" })
           .returning();
         tagIds.push(newTag.id);
       }
