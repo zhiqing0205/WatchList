@@ -1,6 +1,6 @@
 "use server";
 
-import { db } from "@/db";
+import { db, ensureMigrated } from "@/db";
 import { mediaItems, tvProgress, movieProgress, mediaTags, tags } from "@/db/schema";
 import { eq, desc, asc, sql, and, like } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -10,6 +10,7 @@ export async function addMediaFromTmdb(
   details: TmdbMediaDetails,
   mediaType: "movie" | "tv"
 ) {
+  await ensureMigrated();
   const title = details.title || details.name || "Unknown";
   const originalTitle = details.original_title || details.original_name;
   const releaseDate = details.release_date || details.first_air_date;
@@ -78,6 +79,7 @@ export async function getMediaItems(options?: {
   limit?: number;
   visibleOnly?: boolean;
 }) {
+  await ensureMigrated();
   const {
     status,
     mediaType,
@@ -117,6 +119,7 @@ export async function getMediaItems(options?: {
 }
 
 export async function getMediaItemById(id: number) {
+  await ensureMigrated();
   const [item] = await db
     .select()
     .from(mediaItems)
@@ -166,6 +169,7 @@ export async function updateMediaItem(
     sortOrder?: number;
   }
 ) {
+  await ensureMigrated();
   await db
     .update(mediaItems)
     .set({
@@ -185,6 +189,7 @@ export async function updateTvProgress(
   mediaItemId: number,
   data: { currentSeason: number; currentEpisode: number }
 ) {
+  await ensureMigrated();
   await db
     .update(tvProgress)
     .set({
@@ -209,6 +214,7 @@ export async function updateMovieProgress(
   mediaItemId: number,
   watched: boolean
 ) {
+  await ensureMigrated();
   await db
     .update(movieProgress)
     .set({
@@ -232,12 +238,14 @@ export async function updateMovieProgress(
 }
 
 export async function deleteMediaItem(id: number) {
+  await ensureMigrated();
   await db.delete(mediaItems).where(eq(mediaItems.id, id));
   revalidatePath("/admin/library");
   revalidatePath("/media");
 }
 
 export async function setMediaTags(mediaItemId: number, tagIds: number[]) {
+  await ensureMigrated();
   await db.delete(mediaTags).where(eq(mediaTags.mediaItemId, mediaItemId));
 
   if (tagIds.length > 0) {
@@ -253,33 +261,39 @@ export async function setMediaTags(mediaItemId: number, tagIds: number[]) {
 
 // Tags CRUD
 export async function getAllTags() {
+  await ensureMigrated();
   return db.select().from(tags).orderBy(asc(tags.sortOrder), asc(tags.name));
 }
 
 export async function createTag(data: { name: string; slug: string; color: string }) {
+  await ensureMigrated();
   const [tag] = await db.insert(tags).values(data).returning();
   revalidatePath("/admin/tags");
   return tag;
 }
 
 export async function updateTag(id: number, data: { name?: string; slug?: string; color?: string; sortOrder?: number }) {
+  await ensureMigrated();
   await db.update(tags).set(data).where(eq(tags.id, id));
   revalidatePath("/admin/tags");
 }
 
 export async function deleteTag(id: number) {
+  await ensureMigrated();
   await db.delete(tags).where(eq(tags.id, id));
   revalidatePath("/admin/tags");
 }
 
 // Site config
 export async function getSiteConfig() {
+  await ensureMigrated();
   const { siteConfig } = await import("@/db/schema");
   const rows = await db.select().from(siteConfig);
   return Object.fromEntries(rows.map((r) => [r.key, r.value]));
 }
 
 export async function getConfigValue(key: string) {
+  await ensureMigrated();
   const { siteConfig } = await import("@/db/schema");
   const [row] = await db
     .select()
@@ -290,6 +304,7 @@ export async function getConfigValue(key: string) {
 }
 
 export async function setConfigValue(key: string, value: string) {
+  await ensureMigrated();
   const { siteConfig } = await import("@/db/schema");
   await db
     .insert(siteConfig)
@@ -303,6 +318,7 @@ export async function setConfigValue(key: string, value: string) {
 
 // Dashboard stats
 export async function getDashboardStats() {
+  await ensureMigrated();
   const [totalCount] = await db
     .select({ count: sql<number>`count(*)` })
     .from(mediaItems);
@@ -339,6 +355,7 @@ export async function getDashboardStats() {
 
 // Get media items by tag
 export async function getMediaByTag(tagSlug: string, page = 1, limit = 20) {
+  await ensureMigrated();
   const [tag] = await db
     .select()
     .from(tags)
