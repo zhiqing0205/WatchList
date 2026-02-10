@@ -48,7 +48,6 @@ function computeWatchPercent(item: MediaCardItem): number {
         ? JSON.parse(item.tvProgress.seasonDetails)
         : [];
 
-    // Filter out season 0 (specials)
     const seasons = seasonDetails.filter((s) => s.season_number > 0);
     const totalEps = seasons.reduce(
       (sum, s) => sum + (s.episode_count || 0),
@@ -92,6 +91,9 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
   const tvStats =
     item.mediaType === "tv" ? getTvStats(item.tvProgress) : null;
 
+  const displayRating =
+    item.rating || (item.voteAverage ? item.voteAverage.toFixed(1) : null);
+
   return (
     <Link href={`/media/${item.id}`} className="group block">
       <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-muted">
@@ -100,7 +102,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
           src={getImageUrl(item.posterPath)}
           alt={item.title}
           fill
-          className="object-cover grayscale"
+          className="object-cover grayscale transition-transform duration-500 ease-out group-hover:scale-110"
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
         />
         {/* Color layer - clipped to watch percentage */}
@@ -109,63 +111,56 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
             src={getImageUrl(item.posterPath)}
             alt=""
             fill
-            className="object-cover"
+            className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
             style={{ clipPath: `inset(0 ${100 - watchPercent}% 0 0)` }}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
             aria-hidden
           />
         )}
 
-        {/* Always-visible overlays */}
-        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/70 to-transparent" />
-        <div className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/50 to-transparent" />
+        {/* Gradient overlays */}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/60 to-transparent" />
 
         {/* Top left: status badge */}
-        <div className="absolute left-1.5 top-1.5">
+        <div className="absolute left-2 top-2 transition-transform duration-300 group-hover:-translate-y-0.5">
           <Badge
             variant="secondary"
-            className={`${statusColors[item.status]} text-white border-0 text-[10px] px-1.5 py-0`}
+            className={`${statusColors[item.status]} text-white border-0 text-[10px] px-1.5 py-0 shadow-md`}
           >
             {statusLabels[item.status]}
           </Badge>
         </div>
 
-        {/* Top right: rating */}
-        {item.rating && (
-          <div className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-[10px] font-bold text-yellow-400">
-            {item.rating}
+        {/* Top right: rating (TMDB or personal) */}
+        {displayRating && (
+          <div className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-[11px] font-bold text-yellow-400 shadow-md backdrop-blur-sm transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5">
+            {displayRating}
           </div>
         )}
 
-        {/* Bottom left: type + year */}
-        <div className="absolute bottom-1.5 left-1.5">
-          <p className="text-[10px] text-white/90 font-medium">
+        {/* Bottom info - always visible, shifts up on hover */}
+        <div className="absolute bottom-0 left-0 right-0 p-2.5 transition-transform duration-300 group-hover:-translate-y-1">
+          {/* Bottom left: type + year */}
+          <p className="text-[11px] text-white/90 font-medium transition-all duration-300 group-hover:text-xs">
             {item.mediaType === "tv" ? "剧集" : "电影"}
             {item.releaseDate && ` · ${item.releaseDate.substring(0, 4)}`}
           </p>
-        </div>
 
-        {/* Bottom right: seasons/episodes info */}
-        {tvStats && tvStats.totalEpisodes > 0 && (
-          <div className="absolute bottom-1.5 right-1.5 text-right">
-            <p className="text-[10px] text-white/90 font-medium">
-              {tvStats.totalSeasons}季 {tvStats.totalEpisodes}集
+          {/* Bottom right: seasons/episodes info */}
+          {tvStats && tvStats.totalEpisodes > 0 && (
+            <p className="text-[11px] text-white/90 font-medium text-right mt-0.5">
+              {tvStats.totalSeasons}季 · {tvStats.totalEpisodes}集
             </p>
-          </div>
-        )}
-
-        {/* Hover scale effect */}
-        <div className="absolute inset-0 transition-transform duration-300 group-hover:scale-105 pointer-events-none" />
+          )}
+        </div>
       </div>
-      <div className="mt-2 space-y-0.5">
-        <h3 className="line-clamp-1 text-sm font-medium leading-tight">
+
+      {/* Title below card */}
+      <div className="mt-2">
+        <h3 className="line-clamp-1 text-sm font-medium leading-tight transition-colors duration-200 group-hover:text-primary">
           {item.title}
         </h3>
-        {item.voteAverage !== null && item.voteAverage !== undefined && (
-          <p className="text-xs text-muted-foreground">
-            ⭐ {item.voteAverage.toFixed(1)}
-          </p>
-        )}
       </div>
     </Link>
   );

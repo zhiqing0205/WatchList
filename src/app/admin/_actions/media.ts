@@ -442,6 +442,103 @@ export async function deleteMediaItem(id: number) {
   revalidateAll();
 }
 
+// Batch operations
+export async function batchMarkCompleted(ids: number[]) {
+  await ensureMigrated();
+  for (const id of ids) {
+    const [item] = await db.select().from(mediaItems).where(eq(mediaItems.id, id)).limit(1);
+    if (!item) continue;
+
+    if (item.mediaType === "movie") {
+      await db
+        .update(movieProgress)
+        .set({ watched: true, watchedAt: sql`datetime('now')`, updatedAt: sql`datetime('now')` })
+        .where(eq(movieProgress.mediaItemId, id));
+    }
+
+    const oldStatus = item.status;
+    await db
+      .update(mediaItems)
+      .set({ status: "completed", updatedAt: sql`datetime('now')` })
+      .where(eq(mediaItems.id, id));
+
+    if (oldStatus !== "completed") {
+      await recordHistory(id, "status_changed", { from: oldStatus, to: "completed" });
+    }
+  }
+  revalidateAll();
+}
+
+export async function batchDelete(ids: number[]) {
+  await ensureMigrated();
+  for (const id of ids) {
+    await db.delete(mediaItems).where(eq(mediaItems.id, id));
+  }
+  revalidateAll();
+}
+
+export async function refetchMediaMetadata(id: number) {
+  await ensureMigrated();
+  const { getMediaDetails } = await import("@/lib/tmdb");
+
+  const [item] = await db.select().from(mediaItems).where(eq(mediaItems.id, id)).limit(1);
+  if (!item) return;
+
+  const details = await getMediaDetails(item.mediaType as "movie" | "tv", item.tmdbId);
+  const title = details.title || details.name || item.title;
+  const originalTitle = details.original_title || details.original_name;
+  const releaseDate = details.release_date || details.first_air_date;
+  const genres = JSON.stringify(details.genres.map((g) => g.name));
+
+  await db
+    .update(mediaItems)
+    .set({
+      title,
+      originalTitle,
+      overview: details.overview,
+      posterPath: details.poster_path,
+      backdropPath: details.backdrop_path,
+      releaseDate,
+      voteAverage: details.vote_average,
+      genres,
+      updatedAt: sql`datetime('now')`,
+    })
+    .where(eq(mediaItems.id, id));
+
+  // Update TV season details if applicable
+  if (item.mediaType === "tv" && details.seasons) {
+    const seasonDetails = JSON.stringify(
+      details.seasons.map((s) => ({
+        season_number: s.season_number,
+        episode_count: s.episode_count,
+        name: s.name,
+      }))
+    );
+    await db
+      .update(tvProgress)
+      .set({
+        totalSeasons: details.number_of_seasons || 1,
+        seasonDetails,
+        updatedAt: sql`datetime('now')`,
+      })
+      .where(eq(tvProgress.mediaItemId, id));
+  }
+
+  revalidateAll(id);
+}
+
+export async function batchRefetchMetadata(ids: number[]) {
+  await ensureMigrated();
+  for (const id of ids) {
+    try {
+      await refetchMediaMetadata(id);
+    } catch {
+      // Continue with other items if one fails
+    }
+  }
+  revalidateAll();
+}
+
 export async function setMediaTags(mediaItemId: number, tagIds: number[]) {
   await ensureMigrated();
   await db.delete(mediaTags).where(eq(mediaTags.mediaItemId, mediaItemId));

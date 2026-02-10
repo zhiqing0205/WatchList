@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Film, Sun, Moon } from "lucide-react";
+import { Film } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function PublicLayout({
@@ -9,8 +9,9 @@ export default function PublicLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto flex h-14 items-center justify-between px-4">
+      <header className="sticky top-0 z-50 bg-transparent">
+        <div className="absolute inset-0 bg-background/60 backdrop-blur-md" />
+        <div className="container relative mx-auto flex h-14 items-center justify-between px-4">
           <Link href="/media" className="flex items-center gap-2 font-semibold">
             <Film className="h-5 w-5 text-primary" />
             追剧清单
@@ -41,8 +42,9 @@ export default function PublicLayout({
         </div>
       </header>
       <main className="flex-1">{children}</main>
-      <footer className="border-t bg-background/80 backdrop-blur-sm py-6">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
+      <footer className="relative z-10">
+        <div className="absolute inset-0 bg-background/60 backdrop-blur-md" />
+        <div className="container relative mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
           追剧清单 &copy; {new Date().getFullYear()}
         </div>
       </footer>
