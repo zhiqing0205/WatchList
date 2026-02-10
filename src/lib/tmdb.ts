@@ -128,6 +128,33 @@ export async function getSeasonDetails(
   return tmdbFetch<TmdbSeasonDetails>(`/tv/${tvId}/season/${seasonNumber}`);
 }
 
+export interface TmdbPersonCredit {
+  id: number;
+  title?: string;
+  name?: string;
+  media_type: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  vote_average: number;
+  release_date?: string;
+  first_air_date?: string;
+  character?: string;
+  episode_count?: number;
+}
+
+export interface TmdbPersonCreditsResponse {
+  cast: TmdbPersonCredit[];
+  crew: TmdbPersonCredit[];
+}
+
+export async function getPersonCredits(
+  personId: number
+): Promise<TmdbPersonCreditsResponse> {
+  return tmdbFetch<TmdbPersonCreditsResponse>(
+    `/person/${personId}/combined_credits`
+  );
+}
+
 export function getImageUrl(path: string | null, size: string = "w500"): string {
   if (!path) return "/placeholder.svg";
   return `${TMDB_IMAGE_BASE}/${size}${path}`;

@@ -34,7 +34,7 @@ export function FilterBar({ tags }: { tags: Tag[] }) {
       params.delete(key);
     }
     params.delete("page");
-    return `/media?${params.toString()}`;
+    return `/?${params.toString()}`;
   }
 
   return (

@@ -2,17 +2,17 @@
 
 import { db, ensureMigrated } from "@/db";
 import { mediaItems, tvProgress, movieProgress, mediaTags, tags, progressHistory } from "@/db/schema";
-import { eq, desc, asc, sql, and, like } from "drizzle-orm";
+import { eq, desc, asc, sql, and, like, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { TmdbMediaDetails } from "@/lib/tmdb";
 
 function revalidateAll(mediaItemId?: number) {
   revalidatePath("/admin/library");
   revalidatePath("/admin");
-  revalidatePath("/media");
+  revalidatePath("/");
   if (mediaItemId) {
     revalidatePath(`/admin/library/${mediaItemId}`);
-    revalidatePath(`/media/${mediaItemId}`);
+    revalidatePath(`/${mediaItemId}`);
   }
 }
 
@@ -692,4 +692,29 @@ export async function getMediaByTag(tagSlug: string, page = 1, limit = 20) {
     totalPages: Math.ceil(countResult.count / limit),
     tag,
   };
+}
+
+// Check which TMDB IDs are already in the library
+export async function checkMediaInLibrary(
+  tmdbIds: number[]
+): Promise<Record<number, number>> {
+  await ensureMigrated();
+  if (tmdbIds.length === 0) return {};
+
+  const rows = await db
+    .select({ id: mediaItems.id, tmdbId: mediaItems.tmdbId })
+    .from(mediaItems)
+    .where(inArray(mediaItems.tmdbId, tmdbIds));
+
+  return Object.fromEntries(rows.map((r) => [r.tmdbId, r.id]));
+}
+
+// Import media by TMDB ID (fetches details from TMDB first)
+export async function importMediaByTmdbId(
+  tmdbId: number,
+  mediaType: "movie" | "tv"
+) {
+  const { getMediaDetails } = await import("@/lib/tmdb");
+  const details = await getMediaDetails(mediaType, tmdbId);
+  return addMediaFromTmdb(details, mediaType);
 }

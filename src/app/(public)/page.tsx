@@ -15,7 +15,7 @@ interface Props {
   }>;
 }
 
-export default async function MediaListPage({ searchParams }: Props) {
+export default async function HomePage({ searchParams }: Props) {
   const params = await searchParams;
   const page = Number(params.page) || 1;
   const status = params.status || undefined;
@@ -29,7 +29,7 @@ export default async function MediaListPage({ searchParams }: Props) {
   const urlParams = new URLSearchParams();
   if (status) urlParams.set("status", status);
   if (mediaType) urlParams.set("type", mediaType);
-  const baseUrl = `/media${urlParams.toString() ? `?${urlParams.toString()}` : ""}`;
+  const baseUrl = `/${urlParams.toString() ? `?${urlParams.toString()}` : ""}`;
 
   return (
     <div className="container mx-auto px-4 py-6">

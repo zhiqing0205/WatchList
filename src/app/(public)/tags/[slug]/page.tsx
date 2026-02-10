@@ -26,7 +26,7 @@ export default async function TagPage({ params, searchParams }: Props) {
     <div className="container mx-auto px-4 py-6">
       <div className="mb-6 flex items-center gap-3">
         <Link
-          href="/media"
+          href="/"
           className="text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-5 w-5" />

@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getImageUrl } from "@/lib/tmdb";
@@ -86,37 +89,88 @@ function getTvStats(tvProgress: TvProgressInfo | null | undefined) {
   return { totalSeasons, totalEpisodes };
 }
 
+type AnimPhase = "idle" | "zooming" | "sweeping";
+
 export function MediaCard({ item }: { item: MediaCardItem }) {
   const watchPercent = computeWatchPercent(item);
   const tvStats =
     item.mediaType === "tv" ? getTvStats(item.tvProgress) : null;
-
   const displayRating =
     item.rating || (item.voteAverage ? item.voteAverage.toFixed(1) : null);
 
+  const [phase, setPhase] = useState<AnimPhase>("idle");
+  const [hovered, setHovered] = useState(false);
+
+  const handleMouseEnter = useCallback(() => {
+    setHovered(true);
+    setPhase("zooming");
+    // After zoom completes (500ms), start sweep
+    setTimeout(() => {
+      setPhase((prev) => (prev === "zooming" ? "sweeping" : prev));
+    }, 500);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setHovered(false);
+    setPhase("idle");
+  }, []);
+
+  // Color layer clip-path based on animation phase
+  const colorClip = (() => {
+    if (phase === "idle") {
+      // Default: show watched portion
+      return `inset(0 ${100 - watchPercent}% 0 0)`;
+    }
+    if (phase === "zooming") {
+      // During zoom: fade to full grayscale (color goes to 0)
+      return "inset(0 100% 0 0)";
+    }
+    // Sweeping: animate back to watch percentage
+    return `inset(0 ${100 - watchPercent}% 0 0)`;
+  })();
+
+  const colorTransition = (() => {
+    if (phase === "idle") return "clip-path 0.3s ease-out";
+    if (phase === "zooming") return "clip-path 0.5s ease-out";
+    return "clip-path 0.6s ease-out";
+  })();
+
+  const imageScale = hovered ? "scale(1.1)" : "scale(1)";
+
   return (
-    <Link href={`/media/${item.id}`} className="group block">
+    <Link
+      href={`/${item.id}`}
+      className="group block"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-muted">
         {/* Grayscale base layer */}
         <Image
           src={getImageUrl(item.posterPath)}
           alt={item.title}
           fill
-          className="object-cover grayscale transition-transform duration-500 ease-out group-hover:scale-110"
+          className="object-cover grayscale"
+          style={{
+            transform: imageScale,
+            transition: "transform 0.5s ease-out",
+          }}
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
         />
-        {/* Color layer - clipped to watch percentage */}
-        {watchPercent > 0 && (
-          <Image
-            src={getImageUrl(item.posterPath)}
-            alt=""
-            fill
-            className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
-            style={{ clipPath: `inset(0 ${100 - watchPercent}% 0 0)` }}
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-            aria-hidden
-          />
-        )}
+        {/* Color layer - animated clip */}
+        <Image
+          src={getImageUrl(item.posterPath)}
+          alt=""
+          fill
+          className="object-cover"
+          style={{
+            clipPath: colorClip,
+            transition: `${colorTransition}, transform 0.5s ease-out`,
+            transform: imageScale,
+          }}
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+          aria-hidden
+        />
 
         {/* Gradient overlays */}
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
@@ -132,27 +186,26 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
           </Badge>
         </div>
 
-        {/* Top right: rating (TMDB or personal) */}
+        {/* Top right: rating */}
         {displayRating && (
           <div className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-[11px] font-bold text-yellow-400 shadow-md backdrop-blur-sm transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5">
             {displayRating}
           </div>
         )}
 
-        {/* Bottom info - always visible, shifts up on hover */}
+        {/* Bottom info - same line: left type+year, right seasons/eps */}
         <div className="absolute bottom-0 left-0 right-0 p-2.5 transition-transform duration-300 group-hover:-translate-y-1">
-          {/* Bottom left: type + year */}
-          <p className="text-[11px] text-white/90 font-medium transition-all duration-300 group-hover:text-xs">
-            {item.mediaType === "tv" ? "剧集" : "电影"}
-            {item.releaseDate && ` · ${item.releaseDate.substring(0, 4)}`}
-          </p>
-
-          {/* Bottom right: seasons/episodes info */}
-          {tvStats && tvStats.totalEpisodes > 0 && (
-            <p className="text-[11px] text-white/90 font-medium text-right mt-0.5">
-              {tvStats.totalSeasons}季 · {tvStats.totalEpisodes}集
-            </p>
-          )}
+          <div className="flex items-end justify-between">
+            <span className="text-[11px] text-white/90 font-medium">
+              {item.mediaType === "tv" ? "剧集" : "电影"}
+              {item.releaseDate && ` · ${item.releaseDate.substring(0, 4)}`}
+            </span>
+            {tvStats && tvStats.totalEpisodes > 0 && (
+              <span className="text-[11px] text-white/90 font-medium">
+                {tvStats.totalSeasons}季 · {tvStats.totalEpisodes}集
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

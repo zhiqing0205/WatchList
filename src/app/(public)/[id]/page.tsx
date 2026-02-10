@@ -8,6 +8,8 @@ import { getImageUrl, getMediaDetails } from "@/lib/tmdb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Play, ArrowLeft, Star } from "lucide-react";
+import { auth } from "@/lib/auth";
+import { CastSection } from "./_components/cast-section";
 import type { Metadata } from "next";
 import type { TmdbCastMember } from "@/lib/tmdb";
 
@@ -39,6 +41,10 @@ export default async function MediaDetailPage({ params }: Props) {
 
   if (!item) notFound();
 
+  // Check auth status
+  const session = await auth();
+  const isLoggedIn = !!session?.user;
+
   // Fetch cast from TMDB
   let cast: TmdbCastMember[] = [];
   try {
@@ -46,7 +52,7 @@ export default async function MediaDetailPage({ params }: Props) {
       item.mediaType as "movie" | "tv",
       item.tmdbId
     );
-    cast = details.credits?.cast?.slice(0, 20) || [];
+    cast = details.credits?.cast?.slice(0, 30) || [];
   } catch {
     // Silently fail - cast is optional
   }
@@ -88,7 +94,7 @@ export default async function MediaDetailPage({ params }: Props) {
         {/* Back button - top left */}
         <div className="container mx-auto px-4 pt-4">
           <Link
-            href="/media"
+            href="/"
             className="inline-flex items-center gap-1.5 rounded-full bg-background/40 px-3 py-1.5 text-sm text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/60 hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -98,7 +104,7 @@ export default async function MediaDetailPage({ params }: Props) {
 
         {/* Hero: Poster + Info + Synopsis in one row */}
         <div className="container mx-auto px-4 pt-6 pb-8 md:px-10">
-          <div className="flex flex-col md:flex-row gap-8">
+          <div className="flex flex-col gap-8 md:flex-row">
             {/* Poster */}
             <div className="mx-auto w-52 flex-shrink-0 md:mx-0 md:w-60">
               <div className="relative aspect-[2/3] overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/10">
@@ -113,11 +119,11 @@ export default async function MediaDetailPage({ params }: Props) {
             </div>
 
             {/* Info + Synopsis */}
-            <div className="flex flex-1 flex-col justify-between min-w-0">
+            <div className="flex min-w-0 flex-1 flex-col justify-between">
               <div className="space-y-4">
                 {/* Title */}
                 <div>
-                  <h1 className="text-3xl font-bold md:text-4xl leading-tight">
+                  <h1 className="text-3xl font-bold leading-tight md:text-4xl">
                     {item.title}
                   </h1>
                   {item.originalTitle && item.originalTitle !== item.title && (
@@ -147,7 +153,7 @@ export default async function MediaDetailPage({ params }: Props) {
                     <Badge
                       key={g}
                       variant="outline"
-                      className="border-white/15 text-white/70 text-xs"
+                      className="border-white/15 text-xs text-white/70"
                     >
                       {g}
                     </Badge>
@@ -178,7 +184,7 @@ export default async function MediaDetailPage({ params }: Props) {
                 {/* Progress */}
                 {tvProg && (
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-primary font-mono">
+                    <span className="font-mono text-2xl font-bold text-primary">
                       S{String(tvProg.currentSeason).padStart(2, "0")}E
                       {String(tvProg.currentEpisode).padStart(2, "0")}
                     </span>
@@ -193,13 +199,13 @@ export default async function MediaDetailPage({ params }: Props) {
                   <p
                     className={`text-lg font-medium ${movieProg.watched ? "text-green-400" : "text-white/50"}`}
                   >
-                    {movieProg.watched ? "✓ 已观看" : "未观看"}
+                    {movieProg.watched ? "已观看" : "未观看"}
                   </p>
                 )}
 
-                {/* Synopsis - inline with info, not in a separate card */}
+                {/* Synopsis */}
                 {item.overview && (
-                  <p className="text-sm leading-relaxed text-white/70 max-w-2xl">
+                  <p className="max-w-2xl text-sm leading-relaxed text-white/70">
                     {item.overview}
                   </p>
                 )}
@@ -224,52 +230,19 @@ export default async function MediaDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Cast section */}
-        {cast.length > 0 && (
-          <div className="container mx-auto px-4 pb-8 md:px-10">
-            <h2 className="mb-4 text-lg font-semibold text-white/80">演员</h2>
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin">
-              {cast.map((person) => (
-                <div
-                  key={person.id}
-                  className="flex-shrink-0 w-24 text-center"
-                >
-                  <div className="relative mx-auto h-24 w-24 overflow-hidden rounded-full bg-muted ring-2 ring-white/10">
-                    {person.profile_path ? (
-                      <Image
-                        src={getImageUrl(person.profile_path, "w185")}
-                        alt={person.name}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-2xl text-muted-foreground">
-                        {person.name.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-                  <p className="mt-2 text-xs font-medium text-white/80 line-clamp-1">
-                    {person.name}
-                  </p>
-                  <p className="text-[10px] text-white/50 line-clamp-1">
-                    {person.character}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Cast section - wrapping grid with click-through */}
+        <CastSection cast={cast} isLoggedIn={isLoggedIn} />
 
         {/* Notes + Tags */}
         {(item.notes || item.tags.length > 0) && (
           <div className="container mx-auto px-4 pb-12 md:px-10">
             <div className="flex flex-wrap gap-8">
               {item.notes && (
-                <div className="flex-1 min-w-[300px]">
+                <div className="min-w-[300px] flex-1">
                   <h2 className="mb-3 text-lg font-semibold text-white/80">
                     笔记
                   </h2>
-                  <p className="text-sm leading-relaxed text-white/60 whitespace-pre-wrap">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/60">
                     {item.notes}
                   </p>
                 </div>
@@ -284,7 +257,7 @@ export default async function MediaDetailPage({ params }: Props) {
                       <Link key={tag.id} href={`/tags/${tag.slug}`}>
                         <Badge
                           variant="outline"
-                          className="border-white/20 hover:bg-white/10 transition-colors"
+                          className="border-white/20 transition-colors hover:bg-white/10"
                           style={{
                             color: tag.color || undefined,
                             borderColor: tag.color || undefined,

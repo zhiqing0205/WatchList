@@ -12,26 +12,26 @@ export default function PublicLayout({
       <header className="sticky top-0 z-50 bg-transparent">
         <div className="absolute inset-0 bg-background/60 backdrop-blur-md" />
         <div className="container relative mx-auto flex h-14 items-center justify-between px-4">
-          <Link href="/media" className="flex items-center gap-2 font-semibold">
+          <Link href="/" className="flex items-center gap-2 font-semibold">
             <Film className="h-5 w-5 text-primary" />
             追剧清单
           </Link>
           <div className="flex items-center gap-4">
             <nav className="flex items-center gap-4 text-sm">
               <Link
-                href="/media"
+                href="/"
                 className="text-muted-foreground transition-colors hover:text-foreground"
               >
                 全部
               </Link>
               <Link
-                href="/media?type=tv"
+                href="/?type=tv"
                 className="text-muted-foreground transition-colors hover:text-foreground"
               >
                 剧集
               </Link>
               <Link
-                href="/media?type=movie"
+                href="/?type=movie"
                 className="text-muted-foreground transition-colors hover:text-foreground"
               >
                 电影
