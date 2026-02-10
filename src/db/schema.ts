@@ -80,6 +80,16 @@ export const siteConfig = sqliteTable("site_config", {
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });
 
+export const progressHistory = sqliteTable("progress_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  mediaItemId: integer("media_item_id")
+    .references(() => mediaItems.id, { onDelete: "cascade" })
+    .notNull(),
+  action: text("action").notNull(), // 'episode_watched' | 'movie_watched' | 'status_changed' | 'rating_changed'
+  detail: text("detail"), // JSON: { from, to, season, episode, ... }
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
 // Types
 export type MediaItem = typeof mediaItems.$inferSelect;
 export type NewMediaItem = typeof mediaItems.$inferInsert;
@@ -88,3 +98,4 @@ export type MovieProgress = typeof movieProgress.$inferSelect;
 export type Tag = typeof tags.$inferSelect;
 export type MediaTag = typeof mediaTags.$inferSelect;
 export type SiteConfig = typeof siteConfig.$inferSelect;
+export type ProgressHistory = typeof progressHistory.$inferSelect;

@@ -21,6 +21,8 @@ const statusColors: Record<string, string> = {
 };
 
 export function MediaCard({ item }: { item: MediaItem }) {
+  const isWatched = item.status === "completed" || item.status === "watching";
+
   return (
     <Link href={`/media/${item.id}`} className="group block">
       <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-muted">
@@ -28,7 +30,9 @@ export function MediaCard({ item }: { item: MediaItem }) {
           src={getImageUrl(item.posterPath)}
           alt={item.title}
           fill
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
+          className={`object-cover transition-all duration-300 group-hover:scale-105 ${
+            isWatched ? "" : "grayscale"
+          } group-hover:grayscale-0`}
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />

@@ -1,10 +1,28 @@
 "use server";
 
 import { db, ensureMigrated } from "@/db";
-import { mediaItems, tvProgress, movieProgress, mediaTags, tags } from "@/db/schema";
+import { mediaItems, tvProgress, movieProgress, mediaTags, tags, progressHistory } from "@/db/schema";
 import { eq, desc, asc, sql, and, like } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { TmdbMediaDetails } from "@/lib/tmdb";
+
+function revalidateAll(mediaItemId?: number) {
+  revalidatePath("/admin/library");
+  revalidatePath("/admin");
+  revalidatePath("/media");
+  if (mediaItemId) {
+    revalidatePath(`/admin/library/${mediaItemId}`);
+    revalidatePath(`/media/${mediaItemId}`);
+  }
+}
+
+async function recordHistory(mediaItemId: number, action: string, detail: Record<string, unknown>) {
+  await db.insert(progressHistory).values({
+    mediaItemId,
+    action,
+    detail: JSON.stringify(detail),
+  });
+}
 
 export async function addMediaFromTmdb(
   details: TmdbMediaDetails,
@@ -43,7 +61,6 @@ export async function addMediaFromTmdb(
     })
     .returning();
 
-  // Create progress record
   if (mediaType === "tv") {
     const seasonDetails = details.seasons
       ? JSON.stringify(
@@ -66,7 +83,7 @@ export async function addMediaFromTmdb(
     });
   }
 
-  // Auto-create tags from TMDB genres and link them
+  // Auto-create tags from TMDB genres
   if (details.genres && details.genres.length > 0) {
     const tagIds: number[] = [];
     for (const genre of details.genres) {
@@ -97,9 +114,98 @@ export async function addMediaFromTmdb(
     }
   }
 
-  revalidatePath("/admin/library");
-  revalidatePath("/media");
+  await recordHistory(inserted.id, "added", { title, mediaType });
+
+  revalidateAll();
   return { success: true, id: inserted.id };
+}
+
+// Get media items with their progress info for the library list
+export async function getMediaItemsWithProgress(options?: {
+  status?: string;
+  mediaType?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+  visibleOnly?: boolean;
+}) {
+  await ensureMigrated();
+  const {
+    status,
+    mediaType,
+    search,
+    page = 1,
+    limit = 20,
+    visibleOnly = false,
+  } = options || {};
+
+  const conditions = [];
+  if (status) conditions.push(eq(mediaItems.status, status as "watching" | "completed" | "planned" | "dropped" | "on_hold"));
+  if (mediaType) conditions.push(eq(mediaItems.mediaType, mediaType as "movie" | "tv"));
+  if (search) conditions.push(like(mediaItems.title, `%${search}%`));
+  if (visibleOnly) conditions.push(eq(mediaItems.isVisible, true));
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [items, countResult] = await Promise.all([
+    db
+      .select()
+      .from(mediaItems)
+      .where(where)
+      .orderBy(desc(mediaItems.updatedAt))
+      .limit(limit)
+      .offset((page - 1) * limit),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(mediaItems)
+      .where(where),
+  ]);
+
+  // Fetch progress for all items
+  const itemIds = items.map((i) => i.id);
+  const tvItems = items.filter((i) => i.mediaType === "tv").map((i) => i.id);
+  const movieItems = items.filter((i) => i.mediaType === "movie").map((i) => i.id);
+
+  let tvProgressMap: Record<number, { currentSeason: number | null; currentEpisode: number | null; totalSeasons: number | null; seasonDetails: string | null }> = {};
+  let movieProgressMap: Record<number, { watched: boolean | null; watchedAt: string | null }> = {};
+
+  if (tvItems.length > 0) {
+    const tvRows = await db.select().from(tvProgress);
+    for (const row of tvRows) {
+      if (tvItems.includes(row.mediaItemId)) {
+        tvProgressMap[row.mediaItemId] = {
+          currentSeason: row.currentSeason,
+          currentEpisode: row.currentEpisode,
+          totalSeasons: row.totalSeasons,
+          seasonDetails: row.seasonDetails,
+        };
+      }
+    }
+  }
+
+  if (movieItems.length > 0) {
+    const movieRows = await db.select().from(movieProgress);
+    for (const row of movieRows) {
+      if (movieItems.includes(row.mediaItemId)) {
+        movieProgressMap[row.mediaItemId] = {
+          watched: row.watched,
+          watchedAt: row.watchedAt,
+        };
+      }
+    }
+  }
+
+  const itemsWithProgress = items.map((item) => ({
+    ...item,
+    tvProgress: tvProgressMap[item.id] || null,
+    movieProgress: movieProgressMap[item.id] || null,
+  }));
+
+  return {
+    items: itemsWithProgress,
+    total: countResult[0].count,
+    totalPages: Math.ceil(countResult[0].count / limit),
+  };
 }
 
 export async function getMediaItems(options?: {
@@ -201,6 +307,10 @@ export async function updateMediaItem(
   }
 ) {
   await ensureMigrated();
+
+  // Get old values for history
+  const [old] = await db.select().from(mediaItems).where(eq(mediaItems.id, id)).limit(1);
+
   await db
     .update(mediaItems)
     .set({
@@ -210,10 +320,14 @@ export async function updateMediaItem(
     })
     .where(eq(mediaItems.id, id));
 
-  revalidatePath("/admin/library");
-  revalidatePath(`/admin/library/${id}`);
-  revalidatePath("/media");
-  revalidatePath(`/media/${id}`);
+  if (old && data.status && data.status !== old.status) {
+    await recordHistory(id, "status_changed", { from: old.status, to: data.status });
+  }
+  if (old && data.rating !== undefined && data.rating !== old.rating) {
+    await recordHistory(id, "rating_changed", { from: old.rating, to: data.rating });
+  }
+
+  revalidateAll(id);
 }
 
 export async function updateTvProgress(
@@ -221,6 +335,10 @@ export async function updateTvProgress(
   data: { currentSeason: number; currentEpisode: number }
 ) {
   await ensureMigrated();
+
+  // Get old progress for history
+  const [old] = await db.select().from(tvProgress).where(eq(tvProgress.mediaItemId, mediaItemId)).limit(1);
+
   await db
     .update(tvProgress)
     .set({
@@ -230,15 +348,57 @@ export async function updateTvProgress(
     })
     .where(eq(tvProgress.mediaItemId, mediaItemId));
 
+  // Auto-update status
+  if (data.currentEpisode > 0) {
+    const [item] = await db.select().from(mediaItems).where(eq(mediaItems.id, mediaItemId)).limit(1);
+    if (item && item.status === "planned") {
+      await db.update(mediaItems).set({ status: "watching", updatedAt: sql`datetime('now')` }).where(eq(mediaItems.id, mediaItemId));
+      await recordHistory(mediaItemId, "status_changed", { from: "planned", to: "watching" });
+    }
+  }
+
   await db
     .update(mediaItems)
     .set({ updatedAt: sql`datetime('now')` })
     .where(eq(mediaItems.id, mediaItemId));
 
-  revalidatePath("/admin/library");
-  revalidatePath(`/admin/library/${mediaItemId}`);
-  revalidatePath("/media");
-  revalidatePath(`/media/${mediaItemId}`);
+  await recordHistory(mediaItemId, "episode_watched", {
+    from: old ? `S${old.currentSeason}E${old.currentEpisode}` : null,
+    to: `S${data.currentSeason}E${data.currentEpisode}`,
+    season: data.currentSeason,
+    episode: data.currentEpisode,
+  });
+
+  revalidateAll(mediaItemId);
+}
+
+// Quick +1 episode from list
+export async function advanceEpisode(mediaItemId: number) {
+  await ensureMigrated();
+  const [prog] = await db.select().from(tvProgress).where(eq(tvProgress.mediaItemId, mediaItemId)).limit(1);
+  if (!prog) return;
+
+  const seasonDetails: { season_number: number; episode_count: number }[] =
+    prog.seasonDetails ? JSON.parse(prog.seasonDetails) : [];
+
+  let newSeason = prog.currentSeason || 1;
+  let newEpisode = (prog.currentEpisode || 0) + 1;
+
+  // Check if we need to advance to next season
+  const currentSeasonInfo = seasonDetails.find((s) => s.season_number === newSeason);
+  if (currentSeasonInfo && newEpisode > currentSeasonInfo.episode_count) {
+    const nextSeason = seasonDetails.find((s) => s.season_number === newSeason + 1);
+    if (nextSeason) {
+      newSeason = newSeason + 1;
+      newEpisode = 1;
+    }
+    // If no next season, stay at last episode
+    else {
+      newEpisode = currentSeasonInfo.episode_count;
+    }
+  }
+
+  await updateTvProgress(mediaItemId, { currentSeason: newSeason, currentEpisode: newEpisode });
 }
 
 export async function updateMovieProgress(
@@ -246,6 +406,9 @@ export async function updateMovieProgress(
   watched: boolean
 ) {
   await ensureMigrated();
+
+  const [old] = await db.select().from(movieProgress).where(eq(movieProgress.mediaItemId, mediaItemId)).limit(1);
+
   await db
     .update(movieProgress)
     .set({
@@ -263,16 +426,19 @@ export async function updateMovieProgress(
     })
     .where(eq(mediaItems.id, mediaItemId));
 
-  revalidatePath("/admin/library");
-  revalidatePath(`/admin/library/${mediaItemId}`);
-  revalidatePath("/media");
+  await recordHistory(mediaItemId, "movie_watched", { watched, from: old?.watched });
+  await recordHistory(mediaItemId, "status_changed", {
+    from: watched ? "planned" : "completed",
+    to: watched ? "completed" : "planned",
+  });
+
+  revalidateAll(mediaItemId);
 }
 
 export async function deleteMediaItem(id: number) {
   await ensureMigrated();
   await db.delete(mediaItems).where(eq(mediaItems.id, id));
-  revalidatePath("/admin/library");
-  revalidatePath("/media");
+  revalidateAll();
 }
 
 export async function setMediaTags(mediaItemId: number, tagIds: number[]) {
@@ -285,9 +451,7 @@ export async function setMediaTags(mediaItemId: number, tagIds: number[]) {
     );
   }
 
-  revalidatePath("/admin/library");
-  revalidatePath(`/admin/library/${mediaItemId}`);
-  revalidatePath("/media");
+  revalidateAll(mediaItemId);
 }
 
 // Tags CRUD
@@ -299,20 +463,20 @@ export async function getAllTags() {
 export async function createTag(data: { name: string; slug: string; color: string }) {
   await ensureMigrated();
   const [tag] = await db.insert(tags).values(data).returning();
-  revalidatePath("/admin/tags");
+  revalidateAll();
   return tag;
 }
 
 export async function updateTag(id: number, data: { name?: string; slug?: string; color?: string; sortOrder?: number }) {
   await ensureMigrated();
   await db.update(tags).set(data).where(eq(tags.id, id));
-  revalidatePath("/admin/tags");
+  revalidateAll();
 }
 
 export async function deleteTag(id: number) {
   await ensureMigrated();
   await db.delete(tags).where(eq(tags.id, id));
-  revalidatePath("/admin/tags");
+  revalidateAll();
 }
 
 // Site config
@@ -347,6 +511,24 @@ export async function setConfigValue(key: string, value: string) {
   revalidatePath("/admin/settings");
 }
 
+// Progress history
+export async function getProgressHistoryList(limit = 30) {
+  await ensureMigrated();
+  const rows = await db
+    .select({
+      history: progressHistory,
+      title: mediaItems.title,
+      posterPath: mediaItems.posterPath,
+      mediaType: mediaItems.mediaType,
+    })
+    .from(progressHistory)
+    .innerJoin(mediaItems, eq(progressHistory.mediaItemId, mediaItems.id))
+    .orderBy(desc(progressHistory.createdAt))
+    .limit(limit);
+
+  return rows;
+}
+
 // Dashboard stats
 export async function getDashboardStats() {
   await ensureMigrated();
@@ -370,17 +552,13 @@ export async function getDashboardStats() {
     .from(mediaItems)
     .groupBy(mediaItems.mediaType);
 
-  const recentItems = await db
-    .select()
-    .from(mediaItems)
-    .orderBy(desc(mediaItems.updatedAt))
-    .limit(5);
+  const recentHistory = await getProgressHistoryList(15);
 
   return {
     total: totalCount.count,
     byStatus: Object.fromEntries(statusCounts.map((s) => [s.status, s.count])),
     byType: Object.fromEntries(typeCounts.map((t) => [t.mediaType, t.count])),
-    recent: recentItems,
+    recentHistory,
   };
 }
 

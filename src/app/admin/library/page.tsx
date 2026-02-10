@@ -2,13 +2,18 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import Image from "next/image";
-import { getMediaItems } from "@/app/admin/_actions/media";
+import { getMediaItemsWithProgress } from "@/app/admin/_actions/media";
 import { getImageUrl } from "@/lib/tmdb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/pagination";
 import { Edit, Plus } from "lucide-react";
 import { DeleteMediaButton } from "./_components/delete-button";
+import {
+  TvProgressControl,
+  MovieProgressControl,
+  StatusControl,
+} from "./_components/progress-controls";
 
 const statusLabels: Record<string, string> = {
   watching: "在看",
@@ -25,7 +30,7 @@ interface Props {
 export default async function LibraryPage({ searchParams }: Props) {
   const params = await searchParams;
   const page = Number(params.page) || 1;
-  const { items, totalPages } = await getMediaItems({
+  const { items, totalPages } = await getMediaItemsWithProgress({
     page,
     status: params.status,
     mediaType: params.type,
@@ -93,9 +98,7 @@ export default async function LibraryPage({ searchParams }: Props) {
                 <Badge variant="outline" className="text-xs flex-shrink-0">
                   {item.mediaType === "tv" ? "剧集" : "电影"}
                 </Badge>
-                <Badge variant="secondary" className="text-xs flex-shrink-0">
-                  {statusLabels[item.status]}
-                </Badge>
+                <StatusControl mediaItemId={item.id} status={item.status} />
               </div>
               <p className="text-xs text-muted-foreground">
                 {item.releaseDate?.substring(0, 4)}
@@ -104,7 +107,25 @@ export default async function LibraryPage({ searchParams }: Props) {
                 {!item.isVisible ? " · 🔒 隐藏" : ""}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+
+            {/* Inline progress controls */}
+            <div className="flex-shrink-0">
+              {item.mediaType === "tv" && (
+                <TvProgressControl
+                  mediaItemId={item.id}
+                  progress={item.tvProgress}
+                  status={item.status}
+                />
+              )}
+              {item.mediaType === "movie" && (
+                <MovieProgressControl
+                  mediaItemId={item.id}
+                  progress={item.movieProgress}
+                />
+              )}
+            </div>
+
+            <div className="flex items-center gap-1 flex-shrink-0">
               <Button variant="ghost" size="sm" asChild>
                 <Link href={`/admin/library/${item.id}`}>
                   <Edit className="h-4 w-4" />

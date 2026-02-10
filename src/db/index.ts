@@ -73,6 +73,14 @@ const migrationStatements = [
     \`value\` text,
     \`updated_at\` text DEFAULT (datetime('now'))
   )`,
+  `CREATE TABLE IF NOT EXISTS \`progress_history\` (
+    \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    \`media_item_id\` integer NOT NULL,
+    \`action\` text NOT NULL,
+    \`detail\` text,
+    \`created_at\` text DEFAULT (datetime('now')),
+    FOREIGN KEY (\`media_item_id\`) REFERENCES \`media_items\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  )`,
 ];
 
 let migrated = false;
