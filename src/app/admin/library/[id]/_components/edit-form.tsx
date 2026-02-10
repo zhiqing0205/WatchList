@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { getImageUrl } from "@/lib/tmdb";
 import {
@@ -19,6 +19,8 @@ import {
   updateTvProgress,
   updateMovieProgress,
   setMediaTags,
+  createTag,
+  deleteTag,
 } from "@/app/admin/_actions/media";
 import type { MediaItem, Tag, TvProgress, MovieProgress } from "@/db/schema";
 
@@ -30,7 +32,7 @@ interface EditFormProps {
   allTags: Tag[];
 }
 
-export function MediaEditForm({ item, allTags }: EditFormProps) {
+export function MediaEditForm({ item, allTags: initialTags }: EditFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
@@ -42,9 +44,12 @@ export function MediaEditForm({ item, allTags }: EditFormProps) {
   const [isVisible, setIsVisible] = useState(item.isVisible !== false);
 
   // Tags
+  const [allTags, setAllTags] = useState<Tag[]>(initialTags);
   const [selectedTags, setSelectedTags] = useState<number[]>(
     item.tags.map((t) => t.id)
   );
+  const [newTagName, setNewTagName] = useState("");
+  const [addingTag, setAddingTag] = useState(false);
 
   // TV Progress
   const tvProg = item.mediaType === "tv" && item.progress && "currentSeason" in item.progress
@@ -96,6 +101,39 @@ export function MediaEditForm({ item, allTags }: EditFormProps) {
     setSelectedTags((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
     );
+  };
+
+  const handleCreateTag = async () => {
+    const name = newTagName.trim();
+    if (!name) return;
+    setAddingTag(true);
+    try {
+      const slug = name
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^\w\-]/g, "") || `tag-${Date.now()}`;
+      const tag = await createTag({ name, slug, color: "#6366f1" });
+      setAllTags((prev) => [...prev, tag]);
+      setSelectedTags((prev) => [...prev, tag.id]);
+      setNewTagName("");
+      toast.success(`标签「${name}」已创建`);
+    } catch {
+      toast.error("创建标签失败");
+    } finally {
+      setAddingTag(false);
+    }
+  };
+
+  const handleDeleteTag = async (tagId: number, tagName: string) => {
+    if (!confirm(`确定删除标签「${tagName}」？将从所有影视条目中移除。`)) return;
+    try {
+      await deleteTag(tagId);
+      setAllTags((prev) => prev.filter((t) => t.id !== tagId));
+      setSelectedTags((prev) => prev.filter((id) => id !== tagId));
+      toast.success("标签已删除");
+    } catch {
+      toast.error("删除失败");
+    }
   };
 
   const seasonDetails: { season_number: number; episode_count: number; name: string }[] =
@@ -279,26 +317,56 @@ export function MediaEditForm({ item, allTags }: EditFormProps) {
           <CardHeader>
             <CardTitle className="text-base">标签</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">
               {allTags.map((tag) => (
-                <Badge
-                  key={tag.id}
-                  variant={selectedTags.includes(tag.id) ? "default" : "outline"}
-                  className="cursor-pointer"
-                  style={
-                    selectedTags.includes(tag.id)
-                      ? { backgroundColor: tag.color || undefined }
-                      : { borderColor: tag.color || undefined }
-                  }
-                  onClick={() => toggleTag(tag.id)}
-                >
-                  {tag.name}
-                </Badge>
+                <div key={tag.id} className="group relative inline-flex">
+                  <Badge
+                    variant={selectedTags.includes(tag.id) ? "default" : "outline"}
+                    className="cursor-pointer pr-1.5"
+                    style={
+                      selectedTags.includes(tag.id)
+                        ? { backgroundColor: tag.color || undefined }
+                        : { borderColor: tag.color || undefined }
+                    }
+                    onClick={() => toggleTag(tag.id)}
+                  >
+                    {tag.name}
+                    <button
+                      type="button"
+                      className="ml-1 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/20"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTag(tag.id, tag.name);
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                </div>
               ))}
               {allTags.length === 0 && (
-                <p className="text-sm text-muted-foreground">暂无标签，请先创建标签</p>
+                <p className="text-sm text-muted-foreground">暂无标签</p>
               )}
+            </div>
+            {/* Inline create tag */}
+            <div className="flex items-center gap-2">
+              <Input
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                placeholder="添加自定义标签..."
+                className="flex-1"
+                onKeyDown={(e) => e.key === "Enter" && handleCreateTag()}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={addingTag || !newTagName.trim()}
+                onClick={handleCreateTag}
+              >
+                {addingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              </Button>
             </div>
           </CardContent>
         </Card>

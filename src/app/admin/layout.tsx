@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Search,
   Library,
-  Tags,
   Settings,
   LogOut,
   Film,
@@ -19,7 +18,6 @@ const navItems = [
   { href: "/admin", label: "仪表盘", icon: LayoutDashboard },
   { href: "/admin/search", label: "搜索添加", icon: Search },
   { href: "/admin/library", label: "影视管理", icon: Library },
-  { href: "/admin/tags", label: "标签管理", icon: Tags },
   { href: "/admin/settings", label: "系统设置", icon: Settings },
 ];
 

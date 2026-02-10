@@ -66,6 +66,37 @@ export async function addMediaFromTmdb(
     });
   }
 
+  // Auto-create tags from TMDB genres and link them
+  if (details.genres && details.genres.length > 0) {
+    const tagIds: number[] = [];
+    for (const genre of details.genres) {
+      const slug = genre.name
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^\w\-]/g, "");
+      const existing_tag = await db
+        .select()
+        .from(tags)
+        .where(eq(tags.slug, slug))
+        .limit(1);
+
+      if (existing_tag.length > 0) {
+        tagIds.push(existing_tag[0].id);
+      } else {
+        const [newTag] = await db
+          .insert(tags)
+          .values({ name: genre.name, slug: slug || `genre-${genre.id}`, color: "#6366f1" })
+          .returning();
+        tagIds.push(newTag.id);
+      }
+    }
+    if (tagIds.length > 0) {
+      await db.insert(mediaTags).values(
+        tagIds.map((tagId) => ({ mediaItemId: inserted.id, tagId }))
+      );
+    }
+  }
+
   revalidatePath("/admin/library");
   revalidatePath("/media");
   return { success: true, id: inserted.id };
