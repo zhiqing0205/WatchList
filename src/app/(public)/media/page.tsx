@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react";
 import { getMediaItems, getAllTags } from "@/app/admin/_actions/media";
 import { MediaGrid } from "@/components/media-card";

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getDashboardStats } from "@/app/admin/_actions/media";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Film, Tv, Eye, CheckCircle, Clock, Pause, XCircle } from "lucide-react";

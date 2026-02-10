@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getMediaByTag } from "@/app/admin/_actions/media";
 import { MediaGrid } from "@/components/media-card";
 import { Pagination } from "@/components/pagination";

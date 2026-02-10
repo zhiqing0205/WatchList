@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { notFound } from "next/navigation";
 import { getMediaItemById, getAllTags } from "@/app/admin/_actions/media";
 import { MediaEditForm } from "./_components/edit-form";
