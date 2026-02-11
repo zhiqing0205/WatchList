@@ -716,6 +716,79 @@ export async function getDashboardStats() {
   };
 }
 
+// Get media items grouped by status for homepage
+export async function getMediaItemsGroupedByStatus(options?: {
+  mediaType?: string;
+  visibleOnly?: boolean;
+  limit?: number;
+}) {
+  await ensureMigrated();
+  const { mediaType, visibleOnly = true, limit = 15 } = options || {};
+
+  const statuses = ["watching", "planned", "completed", "on_hold"] as const;
+  const groups: { status: string; items: Awaited<ReturnType<typeof getMediaItemsWithProgress>>["items"]; total: number }[] = [];
+
+  for (const status of statuses) {
+    const conditions = [
+      eq(mediaItems.status, status),
+    ];
+    if (mediaType) conditions.push(eq(mediaItems.mediaType, mediaType as "movie" | "tv"));
+    if (visibleOnly) conditions.push(eq(mediaItems.isVisible, true));
+
+    const where = and(...conditions);
+
+    const [items, countResult] = await Promise.all([
+      db.select().from(mediaItems).where(where).orderBy(desc(mediaItems.updatedAt)).limit(limit),
+      db.select({ count: sql<number>`count(*)` }).from(mediaItems).where(where),
+    ]);
+
+    if (items.length === 0) continue;
+
+    // Fetch progress
+    const tvItems = items.filter((i) => i.mediaType === "tv").map((i) => i.id);
+    const movieItems = items.filter((i) => i.mediaType === "movie").map((i) => i.id);
+
+    let tvProgressMap: Record<number, { currentSeason: number | null; currentEpisode: number | null; totalSeasons: number | null; seasonDetails: string | null }> = {};
+    let movieProgressMap: Record<number, { watched: boolean | null; watchedAt: string | null }> = {};
+
+    if (tvItems.length > 0) {
+      const tvRows = await db.select().from(tvProgress).where(inArray(tvProgress.mediaItemId, tvItems));
+      for (const row of tvRows) {
+        tvProgressMap[row.mediaItemId] = {
+          currentSeason: row.currentSeason,
+          currentEpisode: row.currentEpisode,
+          totalSeasons: row.totalSeasons,
+          seasonDetails: row.seasonDetails,
+        };
+      }
+    }
+
+    if (movieItems.length > 0) {
+      const movieRows = await db.select().from(movieProgress).where(inArray(movieProgress.mediaItemId, movieItems));
+      for (const row of movieRows) {
+        movieProgressMap[row.mediaItemId] = {
+          watched: row.watched,
+          watchedAt: row.watchedAt,
+        };
+      }
+    }
+
+    const itemsWithProgress = items.map((item) => ({
+      ...item,
+      tvProgress: tvProgressMap[item.id] || null,
+      movieProgress: movieProgressMap[item.id] || null,
+    }));
+
+    groups.push({
+      status,
+      items: itemsWithProgress,
+      total: countResult[0].count,
+    });
+  }
+
+  return groups;
+}
+
 // Get media items by tag
 export async function getMediaByTag(tagSlug: string, page = 1, limit = 20) {
   await ensureMigrated();
