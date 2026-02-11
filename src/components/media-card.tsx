@@ -89,32 +89,61 @@ function getTvStats(tvProgress: TvProgressInfo | null | undefined) {
   return { totalSeasons, totalEpisodes };
 }
 
+// Ease-in-out curve: slow start, fast middle, slow end
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+// Shared duration for zoom + fade (ms)
+const ZOOM_DURATION = 600;
+
 type AnimPhase = "idle" | "zooming" | "sweep-ready" | "sweeping";
 
 export function MediaCard({ item }: { item: MediaCardItem }) {
   const watchPercent = computeWatchPercent(item);
   const tvStats =
     item.mediaType === "tv" ? getTvStats(item.tvProgress) : null;
-  const displayRating =
-    item.rating || (item.voteAverage ? item.voteAverage.toFixed(1) : null);
+  const ratingValue =
+    item.rating || (item.voteAverage ? parseFloat(item.voteAverage.toFixed(1)) : null);
 
   const [phase, setPhase] = useState<AnimPhase>("idle");
   const [hovered, setHovered] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Animated rating counter
+  const [animatedRating, setAnimatedRating] = useState<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+
   const handleMouseEnter = useCallback(() => {
     setHovered(true);
     setPhase("zooming");
-    // After zoom/fade completes (500ms), enter sweep-ready (starting position)
     timerRef.current = setTimeout(() => {
       setPhase("sweep-ready");
-    }, 500);
-  }, []);
+    }, ZOOM_DURATION);
+
+    // Start rating counter animation
+    if (ratingValue && ratingValue > 0) {
+      setAnimatedRating(0);
+      const startTime = performance.now();
+      const animate = (now: number) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / ZOOM_DURATION, 1);
+        const eased = easeInOut(progress);
+        setAnimatedRating(eased * ratingValue);
+        if (progress < 1) {
+          rafRef.current = requestAnimationFrame(animate);
+        }
+      };
+      rafRef.current = requestAnimationFrame(animate);
+    }
+  }, [ratingValue]);
 
   const handleMouseLeave = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
     setHovered(false);
     setPhase("idle");
+    setAnimatedRating(null);
   }, []);
 
   // When React renders "sweep-ready", schedule the actual sweep on next frame
@@ -127,6 +156,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
   }, [phase]);
 
   const imageScale = hovered ? "scale(1.1)" : "scale(1)";
+  const transitionTiming = `${ZOOM_DURATION}ms ease-in-out`;
 
   // Color layer styles per phase
   const colorStyle = ((): React.CSSProperties => {
@@ -134,17 +164,16 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
       return {
         clipPath: `inset(0 ${100 - watchPercent}% 0 0)`,
         opacity: 1,
-        transition:
-          "opacity 0.3s ease-out, clip-path 0.3s ease-out, transform 0.5s ease-out",
+        transition: `opacity 0.3s ease-out, clip-path 0.3s ease-out, transform ${transitionTiming}`,
         transform: imageScale,
       };
     }
     if (phase === "zooming") {
-      // Fade the color away gradually (desaturation effect)
+      // Fade color away in sync with zoom — same duration & easing
       return {
         clipPath: `inset(0 ${100 - watchPercent}% 0 0)`,
         opacity: 0,
-        transition: "opacity 0.5s ease-out, transform 0.5s ease-out",
+        transition: `opacity ${transitionTiming}, transform ${transitionTiming}`,
         transform: imageScale,
       };
     }
@@ -161,11 +190,18 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
     return {
       clipPath: `inset(0 ${100 - watchPercent}% 0 0)`,
       opacity: 1,
-      transition:
-        "opacity 0.2s ease-out, clip-path 0.6s ease-out, transform 0.5s ease-out",
+      transition: `opacity 0.2s ease-out, clip-path ${transitionTiming}, transform ${transitionTiming}`,
       transform: imageScale,
     };
   })();
+
+  // Rating display: animated value on hover, static otherwise
+  const shownRating =
+    animatedRating !== null
+      ? animatedRating.toFixed(1)
+      : ratingValue
+        ? ratingValue.toFixed(1)
+        : null;
 
   return (
     <Link
@@ -183,7 +219,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
           className="object-cover grayscale"
           style={{
             transform: imageScale,
-            transition: "transform 0.5s ease-out",
+            transition: `transform ${transitionTiming}`,
           }}
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
         />
@@ -212,10 +248,10 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
           </Badge>
         </div>
 
-        {/* Top right: rating */}
-        {displayRating && (
+        {/* Top right: rating with counter animation */}
+        {shownRating && (
           <div className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-[11px] font-bold text-yellow-400 shadow-md backdrop-blur-sm transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5">
-            {displayRating}
+            {shownRating}
           </div>
         )}
 
