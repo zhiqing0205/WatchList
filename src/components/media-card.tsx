@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getImageUrl } from "@/lib/tmdb";
+import { getImageUrl, getCountryName } from "@/lib/tmdb";
 import { Badge } from "@/components/ui/badge";
 import type { MediaItem } from "@/db/schema";
 
@@ -105,6 +105,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
     item.mediaType === "tv" ? getTvStats(item.tvProgress) : null;
   const ratingValue =
     item.rating || (item.voteAverage ? parseFloat(item.voteAverage.toFixed(1)) : null);
+  const countryName = getCountryName(item.originCountry);
 
   const [phase, setPhase] = useState<AnimPhase>("idle");
   const [hovered, setHovered] = useState(false);
@@ -261,6 +262,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
             <span className="text-[11px] text-white/90 font-medium">
               {item.mediaType === "tv" ? "剧集" : "电影"}
               {item.releaseDate && ` · ${item.releaseDate.substring(0, 4)}`}
+              {countryName && ` · ${countryName}`}
             </span>
             {tvStats && tvStats.totalEpisodes > 0 && (
               <span className="text-[11px] text-white/90 font-medium">

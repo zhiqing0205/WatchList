@@ -13,6 +13,7 @@ export const mediaItems = sqliteTable("media_items", {
   releaseDate: text("release_date"),
   voteAverage: real("vote_average"),
   genres: text("genres"), // JSON string
+  originCountry: text("origin_country"), // e.g. "US", "CN"
   status: text("status", {
     enum: ["watching", "completed", "planned", "dropped", "on_hold"],
   })

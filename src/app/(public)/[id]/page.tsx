@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMediaItemById } from "@/app/admin/_actions/media";
-import { getImageUrl, getMediaDetails } from "@/lib/tmdb";
+import { getImageUrl, getCountryName, getMediaDetails } from "@/lib/tmdb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Play, ArrowLeft, Star } from "lucide-react";
@@ -147,6 +147,11 @@ export default async function MediaDetailPage({ params }: Props) {
                   {item.releaseDate && (
                     <span className="text-sm text-white/60">
                       {item.releaseDate.substring(0, 4)}
+                    </span>
+                  )}
+                  {item.originCountry && (
+                    <span className="text-sm text-white/60">
+                      {getCountryName(item.originCountry)}
                     </span>
                   )}
                   {genres.map((g) => (

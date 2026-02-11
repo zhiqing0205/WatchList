@@ -129,22 +129,15 @@ export function CastSection({ cast, isLoggedIn }: Props) {
     return () => el.removeEventListener("scroll", handleScroll);
   }, [handleScroll, selectedPerson]);
 
-  // Lock body scroll when dialog is open
+  // Lock body scroll when dialog is open (preserve scrollbar space to avoid layout shift)
   useEffect(() => {
     if (selectedPerson) {
-      const scrollY = window.scrollY;
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.left = "0";
-      document.body.style.right = "0";
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
       document.body.style.overflow = "hidden";
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
       return () => {
-        document.body.style.position = "";
-        document.body.style.top = "";
-        document.body.style.left = "";
-        document.body.style.right = "";
         document.body.style.overflow = "";
-        window.scrollTo(0, scrollY);
+        document.body.style.paddingRight = "";
       };
     }
   }, [selectedPerson]);

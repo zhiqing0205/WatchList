@@ -43,6 +43,7 @@ export interface TmdbMediaDetails {
   first_air_date?: string;
   vote_average: number;
   genres: { id: number; name: string }[];
+  origin_country?: string[];
   runtime?: number;
   number_of_seasons?: number;
   number_of_episodes?: number;
@@ -158,4 +159,53 @@ export async function getPersonCredits(
 export function getImageUrl(path: string | null, size: string = "w500"): string {
   if (!path) return "/placeholder.svg";
   return `${TMDB_IMAGE_BASE}/${size}${path}`;
+}
+
+// Country code → Chinese name mapping
+const COUNTRY_NAMES: Record<string, string> = {
+  CN: "中国",
+  HK: "中国香港",
+  TW: "中国台湾",
+  US: "美国",
+  GB: "英国",
+  JP: "日本",
+  KR: "韩国",
+  FR: "法国",
+  DE: "德国",
+  IN: "印度",
+  IT: "意大利",
+  ES: "西班牙",
+  CA: "加拿大",
+  AU: "澳大利亚",
+  RU: "俄罗斯",
+  BR: "巴西",
+  MX: "墨西哥",
+  TH: "泰国",
+  SE: "瑞典",
+  DK: "丹麦",
+  NO: "挪威",
+  NL: "荷兰",
+  BE: "比利时",
+  NZ: "新西兰",
+  IE: "爱尔兰",
+  SG: "新加坡",
+  MY: "马来西亚",
+  PH: "菲律宾",
+  TR: "土耳其",
+  PL: "波兰",
+  AR: "阿根廷",
+  ZA: "南非",
+  EG: "埃及",
+  IL: "以色列",
+  AT: "奥地利",
+  CH: "瑞士",
+  PT: "葡萄牙",
+  CZ: "捷克",
+  FI: "芬兰",
+  CO: "哥伦比亚",
+};
+
+export function getCountryName(code: string | null | undefined): string | null {
+  if (!code) return null;
+  return COUNTRY_NAMES[code] || code;
 }

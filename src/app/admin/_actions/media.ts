@@ -33,6 +33,7 @@ export async function addMediaFromTmdb(
   const originalTitle = details.original_title || details.original_name;
   const releaseDate = details.release_date || details.first_air_date;
   const genres = JSON.stringify(details.genres.map((g) => g.name));
+  const originCountry = details.origin_country?.[0] || null;
 
   const existing = await db
     .select()
@@ -57,6 +58,7 @@ export async function addMediaFromTmdb(
       releaseDate,
       voteAverage: details.vote_average,
       genres,
+      originCountry,
       status: "planned",
     })
     .returning();
@@ -541,6 +543,7 @@ export async function refetchMediaMetadata(id: number) {
   const originalTitle = details.original_title || details.original_name;
   const releaseDate = details.release_date || details.first_air_date;
   const genres = JSON.stringify(details.genres.map((g) => g.name));
+  const originCountry = details.origin_country?.[0] || null;
 
   await db
     .update(mediaItems)
@@ -553,6 +556,7 @@ export async function refetchMediaMetadata(id: number) {
       releaseDate,
       voteAverage: details.vote_average,
       genres,
+      originCountry,
       updatedAt: sql`datetime('now')`,
     })
     .where(eq(mediaItems.id, id));

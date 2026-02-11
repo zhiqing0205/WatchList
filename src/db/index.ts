@@ -81,6 +81,8 @@ const migrationStatements = [
     \`created_at\` text DEFAULT (datetime('now')),
     FOREIGN KEY (\`media_item_id\`) REFERENCES \`media_items\`(\`id\`) ON UPDATE no action ON DELETE cascade
   )`,
+  // Add origin_country column if missing
+  `ALTER TABLE \`media_items\` ADD COLUMN \`origin_country\` text`,
 ];
 
 let migrated = false;
@@ -88,7 +90,13 @@ let migrated = false;
 export async function ensureMigrated() {
   if (migrated) return;
   for (const sql of migrationStatements) {
-    await client.execute(sql);
+    try {
+      await client.execute(sql);
+    } catch (e: unknown) {
+      // Ignore "duplicate column" errors from ALTER TABLE
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!msg.includes("duplicate column")) throw e;
+    }
   }
   migrated = true;
 }
