@@ -24,6 +24,43 @@ interface MovieProgressData {
   watchedAt: string | null;
 }
 
+// Compute total watched episodes for display
+function computeWatchedInfo(progress: TvProgressData) {
+  const seasonDetails: { season_number: number; episode_count: number; name?: string }[] =
+    progress.seasonDetails ? JSON.parse(progress.seasonDetails) : [];
+  const seasons = seasonDetails
+    .filter((s) => s.season_number > 0)
+    .sort((a, b) => a.season_number - b.season_number);
+
+  const currentSeason = progress.currentSeason || 1;
+  const currentEpisode = progress.currentEpisode || 0;
+
+  let watchedEps = 0;
+  let totalEps = 0;
+  for (const s of seasons) {
+    totalEps += s.episode_count || 0;
+    if (s.season_number < currentSeason) {
+      watchedEps += s.episode_count || 0;
+    } else if (s.season_number === currentSeason) {
+      watchedEps += currentEpisode;
+    }
+  }
+
+  return { watchedEps, totalEps, seasons, currentSeason, currentEpisode };
+}
+
+// Determine if an episode is "watched" based on sequential model
+function isEpisodeWatched(
+  season: number,
+  episode: number,
+  currentSeason: number,
+  currentEpisode: number
+): boolean {
+  if (season < currentSeason) return true;
+  if (season === currentSeason && episode <= currentEpisode) return true;
+  return false;
+}
+
 // TV inline progress control
 export function TvProgressControl({
   mediaItemId,
@@ -37,17 +74,18 @@ export function TvProgressControl({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  // Which season to view in the picker (navigational only)
+  const [viewingSeason, setViewingSeason] = useState<number | null>(null);
 
   if (!progress) return null;
 
-  const season = progress.currentSeason || 1;
-  const episode = progress.currentEpisode || 0;
-  const seasonDetails: { season_number: number; episode_count: number }[] =
-    progress.seasonDetails ? JSON.parse(progress.seasonDetails) : [];
-  const currentSeasonInfo = seasonDetails.find(
-    (s) => s.season_number === season
-  );
-  const totalEpisodes = currentSeasonInfo?.episode_count || 0;
+  const { watchedEps, totalEps, seasons, currentSeason, currentEpisode } =
+    computeWatchedInfo(progress);
+
+  // The season currently displayed in the picker
+  const activeSeason = viewingSeason ?? currentSeason;
+  const activeSeasonInfo = seasons.find((s) => s.season_number === activeSeason);
+  const activeSeasonEps = activeSeasonInfo?.episode_count || 0;
 
   const handleAdvance = async () => {
     setLoading(true);
@@ -61,30 +99,17 @@ export function TvProgressControl({
     }
   };
 
-  const handleSetEpisode = async (ep: number) => {
+  // Click on any episode in any season → set progress to that point
+  const handleSetProgress = async (season: number, episode: number) => {
     setLoading(true);
     try {
       await updateTvProgress(mediaItemId, {
         currentSeason: season,
-        currentEpisode: ep,
+        currentEpisode: episode,
       });
       router.refresh();
       setShowPicker(false);
-    } catch {
-      toast.error("更新失败");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSetSeason = async (s: number) => {
-    setLoading(true);
-    try {
-      await updateTvProgress(mediaItemId, {
-        currentSeason: s,
-        currentEpisode: 0,
-      });
-      router.refresh();
+      setViewingSeason(null);
     } catch {
       toast.error("更新失败");
     } finally {
@@ -104,17 +129,24 @@ export function TvProgressControl({
     }
   };
 
+  const progressPercent = totalEps > 0 ? Math.round((watchedEps / totalEps) * 100) : 0;
+
   return (
     <div className="flex flex-col gap-1.5">
-      {/* Progress indicator + quick controls */}
+      {/* Compact progress display + quick controls */}
       <div className="flex items-center gap-1.5">
         <button
-          onClick={() => setShowPicker(!showPicker)}
-          className="rounded bg-muted px-2 py-0.5 text-xs font-mono hover:bg-accent transition-colors"
-          title="点击展开集数选择"
+          onClick={() => {
+            setShowPicker(!showPicker);
+            setViewingSeason(null);
+          }}
+          className="flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-mono hover:bg-accent transition-colors"
+          title="点击展开进度选择"
         >
-          S{season}E{episode}
-          {totalEpisodes > 0 && `/${totalEpisodes}`}
+          <span>S{currentSeason}E{currentEpisode}</span>
+          <span className="text-muted-foreground">
+            {progressPercent}%
+          </span>
         </button>
         <Button
           variant="outline"
@@ -144,51 +176,73 @@ export function TvProgressControl({
         )}
       </div>
 
-      {/* Expandable episode picker */}
+      {/* Expandable progress picker */}
       {showPicker && (
         <div className="absolute right-12 top-full z-20 mt-1 w-80 max-w-[90vw] rounded-md border bg-popover p-3 shadow-lg">
-          {/* Season selector */}
-          {(progress.totalSeasons || 1) > 1 && (
+          {/* Season tabs */}
+          {seasons.length > 1 && (
             <div className="mb-2 flex flex-wrap gap-1">
-              {Array.from(
-                { length: progress.totalSeasons || 1 },
-                (_, i) => i + 1
-              ).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => handleSetSeason(s)}
-                  className={`rounded px-1.5 py-0.5 text-xs transition-colors ${
-                    s === season
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted hover:bg-accent"
-                  }`}
-                >
-                  S{s}
-                </button>
-              ))}
-            </div>
-          )}
-          {/* Episode grid */}
-          {totalEpisodes > 0 && (
-            <div className="grid grid-cols-10 gap-1">
-              {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map(
-                (ep) => (
+              {seasons.map((s) => {
+                const isCompleted = s.season_number < currentSeason;
+                const isCurrent = s.season_number === currentSeason;
+                const isViewing = s.season_number === activeSeason;
+                return (
                   <button
-                    key={ep}
-                    onClick={() => handleSetEpisode(ep)}
-                    disabled={loading}
-                    className={`flex h-7 w-full items-center justify-center rounded text-xs font-medium transition-colors ${
-                      ep <= episode
+                    key={s.season_number}
+                    onClick={() => setViewingSeason(s.season_number)}
+                    className={`flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs transition-colors ${
+                      isViewing
                         ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-accent"
+                        : isCompleted
+                          ? "bg-green-500/15 text-green-600"
+                          : isCurrent
+                            ? "bg-blue-500/15 text-blue-600"
+                            : "bg-muted hover:bg-accent"
                     }`}
                   >
-                    {ep}
+                    {isCompleted && <Check className="h-2.5 w-2.5" />}
+                    S{s.season_number}
                   </button>
-                )
+                );
+              })}
+            </div>
+          )}
+
+          {/* Episode grid for the viewing season */}
+          {activeSeasonEps > 0 && (
+            <div className="grid grid-cols-10 gap-1">
+              {Array.from({ length: activeSeasonEps }, (_, i) => i + 1).map(
+                (ep) => {
+                  const watched = isEpisodeWatched(
+                    activeSeason,
+                    ep,
+                    currentSeason,
+                    currentEpisode
+                  );
+                  return (
+                    <button
+                      key={ep}
+                      onClick={() => handleSetProgress(activeSeason, ep)}
+                      disabled={loading}
+                      className={`flex h-7 w-full items-center justify-center rounded text-xs font-medium transition-colors ${
+                        watched
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-accent"
+                      }`}
+                    >
+                      {ep}
+                    </button>
+                  );
+                }
               )}
             </div>
           )}
+
+          {/* Summary line */}
+          <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+            <span>已看 {watchedEps}/{totalEps} 集</span>
+            <span>{progressPercent}%</span>
+          </div>
         </div>
       )}
     </div>

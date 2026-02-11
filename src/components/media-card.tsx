@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getImageUrl } from "@/lib/tmdb";
@@ -100,12 +100,22 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
 
   const [phase, setPhase] = useState<AnimPhase>("idle");
   const [hovered, setHovered] = useState(false);
+  const colorRef = useRef<HTMLImageElement>(null);
 
   const handleMouseEnter = useCallback(() => {
     setHovered(true);
     setPhase("zooming");
-    // After zoom completes (500ms), start sweep
+    // After zoom/fade completes (500ms), start the sweep
     setTimeout(() => {
+      // Snap clip-path to 0 instantly, then animate sweep
+      const el = colorRef.current;
+      if (el) {
+        el.style.transition = "none";
+        el.style.clipPath = "inset(0 100% 0 0)";
+        el.style.opacity = "0";
+        // Force reflow
+        void el.offsetHeight;
+      }
       setPhase((prev) => (prev === "zooming" ? "sweeping" : prev));
     }, 500);
   }, []);
@@ -115,27 +125,38 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
     setPhase("idle");
   }, []);
 
-  // Color layer clip-path based on animation phase
-  const colorClip = (() => {
+  const imageScale = hovered ? "scale(1.1)" : "scale(1)";
+
+  // Color layer: opacity + clip-path based on animation phase
+  // idle: show watched portion at full opacity
+  // zooming: fade opacity to 0 (gradual desaturation)
+  // sweeping: clip from 0 and sweep to watchPercent at full opacity
+  const colorStyle = ((): React.CSSProperties => {
     if (phase === "idle") {
-      // Default: show watched portion
-      return `inset(0 ${100 - watchPercent}% 0 0)`;
+      return {
+        clipPath: `inset(0 ${100 - watchPercent}% 0 0)`,
+        opacity: 1,
+        transition: "opacity 0.3s ease-out, clip-path 0.3s ease-out, transform 0.5s ease-out",
+        transform: imageScale,
+      };
     }
     if (phase === "zooming") {
-      // During zoom: fade to full grayscale (color goes to 0)
-      return "inset(0 100% 0 0)";
+      // Fade the color away gradually (desaturation effect)
+      return {
+        clipPath: `inset(0 ${100 - watchPercent}% 0 0)`,
+        opacity: 0,
+        transition: "opacity 0.5s ease-out, transform 0.5s ease-out",
+        transform: imageScale,
+      };
     }
-    // Sweeping: animate back to watch percentage
-    return `inset(0 ${100 - watchPercent}% 0 0)`;
+    // Sweeping: snap clip to 0, then animate sweep + opacity back
+    return {
+      clipPath: `inset(0 ${100 - watchPercent}% 0 0)`,
+      opacity: 1,
+      transition: "opacity 0.15s ease-out, clip-path 0.6s ease-out, transform 0.5s ease-out",
+      transform: imageScale,
+    };
   })();
-
-  const colorTransition = (() => {
-    if (phase === "idle") return "clip-path 0.3s ease-out";
-    if (phase === "zooming") return "clip-path 0.5s ease-out";
-    return "clip-path 0.6s ease-out";
-  })();
-
-  const imageScale = hovered ? "scale(1.1)" : "scale(1)";
 
   return (
     <Link
@@ -157,17 +178,14 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
           }}
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
         />
-        {/* Color layer - animated clip */}
+        {/* Color layer - opacity fade + clip sweep */}
         <Image
+          ref={colorRef}
           src={getImageUrl(item.posterPath)}
           alt=""
           fill
           className="object-cover"
-          style={{
-            clipPath: colorClip,
-            transition: `${colorTransition}, transform 0.5s ease-out`,
-            transform: imageScale,
-          }}
+          style={colorStyle}
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
           aria-hidden
         />
