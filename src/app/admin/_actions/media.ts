@@ -393,13 +393,53 @@ export async function advanceEpisode(mediaItemId: number) {
       newSeason = newSeason + 1;
       newEpisode = 1;
     }
-    // If no next season, stay at last episode
+    // If no next season, stay at last episode and auto-complete
     else {
       newEpisode = currentSeasonInfo.episode_count;
+      await db
+        .update(mediaItems)
+        .set({ status: "completed", updatedAt: sql`datetime('now')` })
+        .where(eq(mediaItems.id, mediaItemId));
+      await recordHistory(mediaItemId, "status_changed", { from: "watching", to: "completed" });
     }
   }
 
   await updateTvProgress(mediaItemId, { currentSeason: newSeason, currentEpisode: newEpisode });
+}
+
+// Mark a TV show as fully watched: set progress to last episode of last season + completed
+export async function markTvCompleted(mediaItemId: number) {
+  await ensureMigrated();
+  const [prog] = await db.select().from(tvProgress).where(eq(tvProgress.mediaItemId, mediaItemId)).limit(1);
+  if (!prog) return;
+
+  const seasonDetails: { season_number: number; episode_count: number }[] =
+    prog.seasonDetails ? JSON.parse(prog.seasonDetails) : [];
+  const seasons = seasonDetails
+    .filter((s) => s.season_number > 0)
+    .sort((a, b) => a.season_number - b.season_number);
+
+  if (seasons.length > 0) {
+    const lastSeason = seasons[seasons.length - 1];
+    await updateTvProgress(mediaItemId, {
+      currentSeason: lastSeason.season_number,
+      currentEpisode: lastSeason.episode_count,
+    });
+  }
+
+  const [item] = await db.select().from(mediaItems).where(eq(mediaItems.id, mediaItemId)).limit(1);
+  const oldStatus = item?.status;
+
+  await db
+    .update(mediaItems)
+    .set({ status: "completed", updatedAt: sql`datetime('now')` })
+    .where(eq(mediaItems.id, mediaItemId));
+
+  if (oldStatus && oldStatus !== "completed") {
+    await recordHistory(mediaItemId, "status_changed", { from: oldStatus, to: "completed" });
+  }
+
+  revalidateAll(mediaItemId);
 }
 
 export async function updateMovieProgress(
@@ -454,6 +494,18 @@ export async function batchMarkCompleted(ids: number[]) {
         .update(movieProgress)
         .set({ watched: true, watchedAt: sql`datetime('now')`, updatedAt: sql`datetime('now')` })
         .where(eq(movieProgress.mediaItemId, id));
+    } else if (item.mediaType === "tv") {
+      // Set TV progress to the last episode of the last season
+      const [prog] = await db.select().from(tvProgress).where(eq(tvProgress.mediaItemId, id)).limit(1);
+      if (prog) {
+        const seasonDetails: { season_number: number; episode_count: number }[] =
+          prog.seasonDetails ? JSON.parse(prog.seasonDetails) : [];
+        const seasons = seasonDetails.filter((s) => s.season_number > 0).sort((a, b) => a.season_number - b.season_number);
+        if (seasons.length > 0) {
+          const last = seasons[seasons.length - 1];
+          await updateTvProgress(id, { currentSeason: last.season_number, currentEpisode: last.episode_count });
+        }
+      }
     }
 
     const oldStatus = item.status;

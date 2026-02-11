@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, Check, Eye } from "lucide-react";
+import { Loader2, Check, Eye, SkipForward, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
   advanceEpisode,
   updateMovieProgress,
   updateTvProgress,
+  markTvCompleted,
   updateMediaItem,
 } from "@/app/admin/_actions/media";
 
@@ -24,10 +25,11 @@ interface MovieProgressData {
   watchedAt: string | null;
 }
 
-// Compute total watched episodes for display
 function computeWatchedInfo(progress: TvProgressData) {
-  const seasonDetails: { season_number: number; episode_count: number; name?: string }[] =
-    progress.seasonDetails ? JSON.parse(progress.seasonDetails) : [];
+  const seasonDetails: {
+    season_number: number;
+    episode_count: number;
+  }[] = progress.seasonDetails ? JSON.parse(progress.seasonDetails) : [];
   const seasons = seasonDetails
     .filter((s) => s.season_number > 0)
     .sort((a, b) => a.season_number - b.season_number);
@@ -46,10 +48,21 @@ function computeWatchedInfo(progress: TvProgressData) {
     }
   }
 
-  return { watchedEps, totalEps, seasons, currentSeason, currentEpisode };
+  const isFullyWatched =
+    seasons.length > 0 &&
+    currentSeason === seasons[seasons.length - 1].season_number &&
+    currentEpisode >= seasons[seasons.length - 1].episode_count;
+
+  return {
+    watchedEps,
+    totalEps,
+    seasons,
+    currentSeason,
+    currentEpisode,
+    isFullyWatched,
+  };
 }
 
-// Determine if an episode is "watched" based on sequential model
 function isEpisodeWatched(
   season: number,
   episode: number,
@@ -74,18 +87,27 @@ export function TvProgressControl({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
-  // Which season to view in the picker (navigational only)
   const [viewingSeason, setViewingSeason] = useState<number | null>(null);
 
   if (!progress) return null;
 
-  const { watchedEps, totalEps, seasons, currentSeason, currentEpisode } =
-    computeWatchedInfo(progress);
+  const {
+    watchedEps,
+    totalEps,
+    seasons,
+    currentSeason,
+    currentEpisode,
+    isFullyWatched,
+  } = computeWatchedInfo(progress);
 
-  // The season currently displayed in the picker
   const activeSeason = viewingSeason ?? currentSeason;
-  const activeSeasonInfo = seasons.find((s) => s.season_number === activeSeason);
+  const activeSeasonInfo = seasons.find(
+    (s) => s.season_number === activeSeason
+  );
   const activeSeasonEps = activeSeasonInfo?.episode_count || 0;
+  const progressPercent =
+    totalEps > 0 ? Math.round((watchedEps / totalEps) * 100) : 0;
+  const isCompleted = status === "completed";
 
   const handleAdvance = async () => {
     setLoading(true);
@@ -99,7 +121,6 @@ export function TvProgressControl({
     }
   };
 
-  // Click on any episode in any season → set progress to that point
   const handleSetProgress = async (season: number, episode: number) => {
     setLoading(true);
     try {
@@ -120,7 +141,7 @@ export function TvProgressControl({
   const handleMarkCompleted = async () => {
     setLoading(true);
     try {
-      await updateMediaItem(mediaItemId, { status: "completed" });
+      await markTvCompleted(mediaItemId);
       router.refresh();
     } catch {
       toast.error("更新失败");
@@ -129,49 +150,95 @@ export function TvProgressControl({
     }
   };
 
-  const progressPercent = totalEps > 0 ? Math.round((watchedEps / totalEps) * 100) : 0;
+  const handleRewatch = async () => {
+    setLoading(true);
+    try {
+      await updateTvProgress(mediaItemId, {
+        currentSeason: 1,
+        currentEpisode: 0,
+      });
+      await updateMediaItem(mediaItemId, { status: "watching" });
+      router.refresh();
+    } catch {
+      toast.error("更新失败");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // --- Completed state ---
+  if (isCompleted && isFullyWatched) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="flex items-center gap-1 rounded bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600">
+          <CheckCircle className="h-3 w-3" />
+          已看完 {totalEps}集
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5 text-[10px] text-muted-foreground"
+          onClick={handleRewatch}
+          disabled={loading}
+        >
+          重看
+        </Button>
+      </div>
+    );
+  }
+
+  // --- Active watching state ---
   return (
     <div className="flex flex-col gap-1.5">
-      {/* Compact progress display + quick controls */}
       <div className="flex items-center gap-1.5">
+        {/* Progress pill - click to open picker */}
         <button
           onClick={() => {
             setShowPicker(!showPicker);
             setViewingSeason(null);
           }}
-          className="flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-mono hover:bg-accent transition-colors"
-          title="点击展开进度选择"
+          className="flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-mono transition-colors hover:bg-accent"
+          title="点击选择进度"
         >
-          <span>S{currentSeason}E{currentEpisode}</span>
-          <span className="text-muted-foreground">
-            {progressPercent}%
+          <span>
+            S{currentSeason}E{currentEpisode}
           </span>
+          <span className="text-muted-foreground">{progressPercent}%</span>
         </button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-6 w-6"
-          onClick={handleAdvance}
-          disabled={loading}
-          title="下一集"
-        >
-          {loading ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Plus className="h-3 w-3" />
-          )}
-        </Button>
-        {status !== "completed" && (
+
+        {/* Advance button */}
+        {!isFullyWatched && (
           <Button
             variant="outline"
-            size="icon"
-            className="h-6 w-6"
+            size="sm"
+            className="h-6 gap-1 px-2 text-[11px]"
+            onClick={handleAdvance}
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <SkipForward className="h-3 w-3" />
+            )}
+            下一集
+          </Button>
+        )}
+
+        {/* Mark completed button */}
+        {!isCompleted && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 gap-1 px-2 text-[11px]"
             onClick={handleMarkCompleted}
             disabled={loading}
-            title="标记看完"
           >
-            <Check className="h-3 w-3" />
+            {loading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <CheckCircle className="h-3 w-3" />
+            )}
+            看完
           </Button>
         )}
       </div>
@@ -183,7 +250,7 @@ export function TvProgressControl({
           {seasons.length > 1 && (
             <div className="mb-2 flex flex-wrap gap-1">
               {seasons.map((s) => {
-                const isCompleted = s.season_number < currentSeason;
+                const isBefore = s.season_number < currentSeason;
                 const isCurrent = s.season_number === currentSeason;
                 const isViewing = s.season_number === activeSeason;
                 return (
@@ -193,14 +260,14 @@ export function TvProgressControl({
                     className={`flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs transition-colors ${
                       isViewing
                         ? "bg-primary text-primary-foreground"
-                        : isCompleted
+                        : isBefore
                           ? "bg-green-500/15 text-green-600"
                           : isCurrent
                             ? "bg-blue-500/15 text-blue-600"
                             : "bg-muted hover:bg-accent"
                     }`}
                   >
-                    {isCompleted && <Check className="h-2.5 w-2.5" />}
+                    {isBefore && <Check className="h-2.5 w-2.5" />}
                     S{s.season_number}
                   </button>
                 );
@@ -208,7 +275,7 @@ export function TvProgressControl({
             </div>
           )}
 
-          {/* Episode grid for the viewing season */}
+          {/* Episode grid */}
           {activeSeasonEps > 0 && (
             <div className="grid grid-cols-10 gap-1">
               {Array.from({ length: activeSeasonEps }, (_, i) => i + 1).map(
@@ -238,9 +305,11 @@ export function TvProgressControl({
             </div>
           )}
 
-          {/* Summary line */}
+          {/* Summary */}
           <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-            <span>已看 {watchedEps}/{totalEps} 集</span>
+            <span>
+              已看 {watchedEps}/{totalEps} 集
+            </span>
             <span>{progressPercent}%</span>
           </div>
         </div>
@@ -294,7 +363,7 @@ export function MovieProgressControl({
   );
 }
 
-// Quick status badge that can be clicked to cycle
+// Quick status badge
 export function StatusControl({
   mediaItemId,
   status,

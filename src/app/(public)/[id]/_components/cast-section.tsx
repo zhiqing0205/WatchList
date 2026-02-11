@@ -129,6 +129,26 @@ export function CastSection({ cast, isLoggedIn }: Props) {
     return () => el.removeEventListener("scroll", handleScroll);
   }, [handleScroll, selectedPerson]);
 
+  // Lock body scroll when dialog is open
+  useEffect(() => {
+    if (selectedPerson) {
+      const scrollY = window.scrollY;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        document.body.style.overflow = "";
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [selectedPerson]);
+
   if (cast.length === 0) return null;
 
   return (
