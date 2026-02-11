@@ -1,8 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Check, Eye, SkipForward, CheckCircle } from "lucide-react";
+import {
+  Loader2,
+  Check,
+  Eye,
+  SkipForward,
+  CheckCircle,
+  RotateCcw,
+  ChevronDown,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -108,6 +116,7 @@ export function TvProgressControl({
   const progressPercent =
     totalEps > 0 ? Math.round((watchedEps / totalEps) * 100) : 0;
   const isCompleted = status === "completed";
+  const hasProgress = watchedEps > 0;
 
   const handleAdvance = async () => {
     setLoading(true);
@@ -158,6 +167,21 @@ export function TvProgressControl({
         currentEpisode: 0,
       });
       await updateMediaItem(mediaItemId, { status: "watching" });
+      router.refresh();
+    } catch {
+      toast.error("更新失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReset = async () => {
+    setLoading(true);
+    try {
+      await updateTvProgress(mediaItemId, {
+        currentSeason: 1,
+        currentEpisode: 0,
+      });
       router.refresh();
     } catch {
       toast.error("更新失败");
@@ -239,6 +263,21 @@ export function TvProgressControl({
               <CheckCircle className="h-3 w-3" />
             )}
             看完
+          </Button>
+        )}
+
+        {/* Reset progress button */}
+        {hasProgress && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 gap-1 px-1.5 text-[10px] text-muted-foreground hover:text-destructive"
+            onClick={handleReset}
+            disabled={loading}
+            title="进度归零"
+          >
+            <RotateCcw className="h-3 w-3" />
+            归零
           </Button>
         )}
       </div>
@@ -363,7 +402,15 @@ export function MovieProgressControl({
   );
 }
 
-// Quick status badge
+// Status dropdown with colored options
+const statusConfig = [
+  { value: "watching", label: "在看", dot: "bg-blue-500", bg: "bg-blue-500/10 text-blue-600 border-blue-500/30" },
+  { value: "planned", label: "想看", dot: "bg-yellow-500", bg: "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" },
+  { value: "completed", label: "已看", dot: "bg-green-500", bg: "bg-green-500/10 text-green-600 border-green-500/30" },
+  { value: "on_hold", label: "搁置", dot: "bg-gray-500", bg: "bg-gray-500/10 text-gray-500 border-gray-500/30" },
+  { value: "dropped", label: "弃剧", dot: "bg-red-500", bg: "bg-red-500/10 text-red-600 border-red-500/30" },
+];
+
 export function StatusControl({
   mediaItemId,
   status,
@@ -374,22 +421,21 @@ export function StatusControl({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const statusLabels: Record<string, string> = {
-    watching: "在看",
-    completed: "已看",
-    planned: "想看",
-    dropped: "弃剧",
-    on_hold: "搁置",
-  };
+  const current = statusConfig.find((s) => s.value === status) || statusConfig[0];
 
-  const statusColors: Record<string, string> = {
-    watching: "bg-blue-500/15 text-blue-600 border-blue-500/30",
-    completed: "bg-green-500/15 text-green-600 border-green-500/30",
-    planned: "bg-yellow-500/15 text-yellow-600 border-yellow-500/30",
-    dropped: "bg-red-500/15 text-red-600 border-red-500/30",
-    on_hold: "bg-gray-500/15 text-gray-600 border-gray-500/30",
-  };
+  // Close on outside click
+  useEffect(() => {
+    if (!showOptions) return;
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowOptions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showOptions]);
 
   const handleChange = async (newStatus: string) => {
     if (newStatus === status) {
@@ -397,10 +443,10 @@ export function StatusControl({
       return;
     }
     setLoading(true);
+    setShowOptions(false);
     try {
       await updateMediaItem(mediaItemId, { status: newStatus });
       router.refresh();
-      setShowOptions(false);
     } catch {
       toast.error("更新失败");
     } finally {
@@ -409,25 +455,31 @@ export function StatusControl({
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setShowOptions(!showOptions)}
-        className={`rounded-full border px-2 py-0.5 text-xs font-medium transition-colors ${statusColors[status] || ""}`}
+        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${current.bg}`}
         disabled={loading}
       >
-        {loading ? "..." : statusLabels[status] || status}
+        <span className={`h-1.5 w-1.5 rounded-full ${current.dot}`} />
+        {loading ? "..." : current.label}
+        <ChevronDown className="h-3 w-3 opacity-50" />
       </button>
       {showOptions && (
-        <div className="absolute right-0 top-full z-10 mt-1 rounded-md border bg-popover p-1 shadow-md">
-          {Object.entries(statusLabels).map(([value, label]) => (
+        <div className="absolute left-0 top-full z-10 mt-1 min-w-[120px] rounded-lg border bg-popover p-1 shadow-lg">
+          {statusConfig.map((opt) => (
             <button
-              key={value}
-              onClick={() => handleChange(value)}
-              className={`block w-full rounded px-3 py-1 text-left text-xs transition-colors hover:bg-accent ${
-                value === status ? "font-bold" : ""
+              key={opt.value}
+              onClick={() => handleChange(opt.value)}
+              className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors hover:bg-accent ${
+                opt.value === status ? "font-semibold" : ""
               }`}
             >
-              {label}
+              <span className={`h-2 w-2 rounded-full ${opt.dot}`} />
+              {opt.label}
+              {opt.value === status && (
+                <Check className="ml-auto h-3 w-3 text-muted-foreground" />
+              )}
             </button>
           ))}
         </div>

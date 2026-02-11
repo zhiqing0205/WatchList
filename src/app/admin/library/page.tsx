@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { getMediaItemsWithProgress } from "@/app/admin/_actions/media";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/pagination";
 import { Plus } from "lucide-react";
 import { LibraryList } from "./_components/library-list";
+import { LibrarySearch } from "./_components/library-search";
 
 const statusLabels: Record<string, string> = {
   watching: "在看",
@@ -48,6 +50,11 @@ export default async function LibraryPage({ searchParams }: Props) {
           </Link>
         </Button>
       </div>
+
+      {/* Search bar */}
+      <Suspense>
+        <LibrarySearch />
+      </Suspense>
 
       {/* Filter links */}
       <div className="flex flex-wrap gap-2">
