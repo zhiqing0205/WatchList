@@ -1,8 +1,8 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   providers: [
     Credentials({
       name: "Credentials",
@@ -17,14 +17,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!username || !password) return null;
 
         const adminUsername = process.env.ADMIN_USERNAME;
+        if (!adminUsername || username !== adminUsername) return null;
+
+        // Support both bcrypt hash and plain text password
         const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+        const adminPassword = process.env.ADMIN_PASSWORD;
 
-        if (!adminUsername || !adminPasswordHash) return null;
-
-        if (username !== adminUsername) return null;
-
-        const isValid = await compare(password, adminPasswordHash);
-        if (!isValid) return null;
+        if (adminPasswordHash) {
+          // Bcrypt hash comparison
+          const { compare } = await import("bcryptjs");
+          const isValid = await compare(password, adminPasswordHash);
+          if (!isValid) return null;
+        } else if (adminPassword) {
+          // Plain text comparison
+          if (password !== adminPassword) return null;
+        } else {
+          return null;
+        }
 
         return {
           id: "1",

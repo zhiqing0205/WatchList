@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Check } from "lucide-react";
+import { Loader2, Plus, Check, Star } from "lucide-react";
 import { toast } from "sonner";
 import {
   checkMediaInLibrary,
@@ -77,7 +77,6 @@ export function CastSection({ cast, isLoggedIn }: Props) {
 
       if (isLoggedIn && sortedCredits.length > 0) {
         const tmdbIds = sortedCredits.map((c: PersonCredit) => c.id);
-        // Deduplicate
         const uniqueIds = [...new Set(tmdbIds)] as number[];
         const map = await checkMediaInLibrary(uniqueIds);
         setLibraryMap(map);
@@ -136,7 +135,6 @@ export function CastSection({ cast, isLoggedIn }: Props) {
     <>
       <div className="container mx-auto px-4 pb-8 md:px-10">
         <h2 className="mb-4 text-lg font-semibold text-white/80">演员</h2>
-        {/* Wrapping grid of actors */}
         <div className="flex flex-wrap gap-4">
           {cast.map((person) => (
             <button
@@ -174,90 +172,131 @@ export function CastSection({ cast, isLoggedIn }: Props) {
         open={!!selectedPerson}
         onOpenChange={(open) => !open && setSelectedPerson(null)}
       >
-        <DialogContent className="flex max-h-[80vh] max-w-2xl flex-col">
-          <DialogHeader>
-            <DialogTitle>{selectedPerson?.name} 的作品</DialogTitle>
+        <DialogContent className="flex max-h-[80vh] max-w-2xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b px-6 py-4">
+            <DialogTitle className="flex items-center gap-3">
+              {selectedPerson?.profile_path && (
+                <div className="relative h-10 w-10 overflow-hidden rounded-full bg-muted">
+                  <Image
+                    src={getImageUrl(selectedPerson.profile_path, "w92")}
+                    alt=""
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              )}
+              <div>
+                <span>{selectedPerson?.name}</span>
+                {!loading && credits.length > 0 && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    {credits.length} 部作品
+                  </span>
+                )}
+              </div>
+            </DialogTitle>
           </DialogHeader>
+
           <div
             ref={scrollRef}
-            className="flex-1 space-y-2 overflow-y-auto pr-2"
+            className="flex-1 overflow-y-auto overscroll-contain"
+            style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(var(--muted-foreground) / 0.3) transparent" }}
           >
             {loading ? (
-              <div className="flex justify-center py-8">
+              <div className="flex flex-col items-center justify-center gap-2 py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">加载中...</p>
               </div>
             ) : credits.length === 0 ? (
-              <p className="py-8 text-center text-muted-foreground">
+              <p className="py-12 text-center text-muted-foreground">
                 暂无作品信息
               </p>
             ) : (
-              credits.slice(0, displayCount).map((credit, idx) => {
-                const title = credit.title || credit.name || "Unknown";
-                const year = (
-                  credit.release_date || credit.first_air_date
-                )?.substring(0, 4);
-                const inLibrary = libraryMap[credit.id] !== undefined;
+              <div className="divide-y">
+                {credits.slice(0, displayCount).map((credit, idx) => {
+                  const title = credit.title || credit.name || "Unknown";
+                  const year = (
+                    credit.release_date || credit.first_air_date
+                  )?.substring(0, 4);
+                  const inLibrary = libraryMap[credit.id] !== undefined;
 
-                return (
-                  <div
-                    key={`${credit.id}-${credit.media_type}-${idx}`}
-                    className="flex items-center gap-3 rounded-lg border p-2"
-                  >
-                    <div className="relative h-16 w-11 flex-shrink-0 overflow-hidden rounded bg-muted">
-                      {credit.poster_path && (
-                        <Image
-                          src={getImageUrl(credit.poster_path, "w92")}
-                          alt={title}
-                          fill
-                          className="object-cover"
-                        />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {credit.media_type === "tv" ? "剧集" : "电影"}
-                        {year && ` · ${year}`}
-                        {credit.vote_average
-                          ? ` · ${credit.vote_average.toFixed(1)}`
-                          : ""}
-                      </p>
-                      {credit.character && (
-                        <p className="text-xs text-muted-foreground">
-                          饰 {credit.character}
-                        </p>
-                      )}
-                    </div>
-                    {isLoggedIn && (
-                      <div className="flex-shrink-0">
-                        {inLibrary ? (
-                          <Badge variant="secondary" className="gap-1">
-                            <Check className="h-3 w-3" />
-                            已在库中
-                          </Badge>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleImport(credit)}
-                            disabled={importing.has(credit.id)}
-                          >
-                            {importing.has(credit.id) ? (
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                            ) : (
-                              <Plus className="mr-1 h-3 w-3" />
-                            )}
-                            导入
-                          </Button>
+                  return (
+                    <div
+                      key={`${credit.id}-${credit.media_type}-${idx}`}
+                      className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-accent/50"
+                    >
+                      {/* Poster */}
+                      <div className="relative h-[72px] w-12 flex-shrink-0 overflow-hidden rounded-md bg-muted shadow-sm">
+                        {credit.poster_path && (
+                          <Image
+                            src={getImageUrl(credit.poster_path, "w92")}
+                            alt={title}
+                            fill
+                            className="object-cover"
+                          />
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })
+
+                      {/* Info */}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{title}</p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                          <Badge
+                            variant="outline"
+                            className="h-4 px-1 text-[10px]"
+                          >
+                            {credit.media_type === "tv" ? "剧集" : "电影"}
+                          </Badge>
+                          {year && <span>{year}</span>}
+                          {credit.vote_average > 0 && (
+                            <span className="flex items-center gap-0.5">
+                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                              {credit.vote_average.toFixed(1)}
+                            </span>
+                          )}
+                        </div>
+                        {credit.character && (
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground/70">
+                            饰 {credit.character}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Action */}
+                      {isLoggedIn && (
+                        <div className="flex-shrink-0">
+                          {inLibrary ? (
+                            <Badge
+                              variant="secondary"
+                              className="gap-1 bg-green-500/10 text-green-600 hover:bg-green-500/15"
+                            >
+                              <Check className="h-3 w-3" />
+                              已在库中
+                            </Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 gap-1 text-xs"
+                              onClick={() => handleImport(credit)}
+                              disabled={importing.has(credit.id)}
+                            >
+                              {importing.has(credit.id) ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Plus className="h-3 w-3" />
+                              )}
+                              导入
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
             {!loading && displayCount < credits.length && (
-              <div className="flex justify-center py-4">
+              <div className="flex justify-center border-t py-4">
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
             )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getImageUrl } from "@/lib/tmdb";
@@ -89,7 +89,7 @@ function getTvStats(tvProgress: TvProgressInfo | null | undefined) {
   return { totalSeasons, totalEpisodes };
 }
 
-type AnimPhase = "idle" | "zooming" | "sweeping";
+type AnimPhase = "idle" | "zooming" | "sweep-ready" | "sweeping";
 
 export function MediaCard({ item }: { item: MediaCardItem }) {
   const watchPercent = computeWatchPercent(item);
@@ -100,43 +100,42 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
 
   const [phase, setPhase] = useState<AnimPhase>("idle");
   const [hovered, setHovered] = useState(false);
-  const colorRef = useRef<HTMLImageElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = useCallback(() => {
     setHovered(true);
     setPhase("zooming");
-    // After zoom/fade completes (500ms), start the sweep
-    setTimeout(() => {
-      // Snap clip-path to 0 instantly, then animate sweep
-      const el = colorRef.current;
-      if (el) {
-        el.style.transition = "none";
-        el.style.clipPath = "inset(0 100% 0 0)";
-        el.style.opacity = "0";
-        // Force reflow
-        void el.offsetHeight;
-      }
-      setPhase((prev) => (prev === "zooming" ? "sweeping" : prev));
+    // After zoom/fade completes (500ms), enter sweep-ready (starting position)
+    timerRef.current = setTimeout(() => {
+      setPhase("sweep-ready");
     }, 500);
   }, []);
 
   const handleMouseLeave = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
     setHovered(false);
     setPhase("idle");
   }, []);
 
+  // When React renders "sweep-ready", schedule the actual sweep on next frame
+  useEffect(() => {
+    if (phase !== "sweep-ready") return;
+    const raf = requestAnimationFrame(() => {
+      setPhase("sweeping");
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [phase]);
+
   const imageScale = hovered ? "scale(1.1)" : "scale(1)";
 
-  // Color layer: opacity + clip-path based on animation phase
-  // idle: show watched portion at full opacity
-  // zooming: fade opacity to 0 (gradual desaturation)
-  // sweeping: clip from 0 and sweep to watchPercent at full opacity
+  // Color layer styles per phase
   const colorStyle = ((): React.CSSProperties => {
     if (phase === "idle") {
       return {
         clipPath: `inset(0 ${100 - watchPercent}% 0 0)`,
         opacity: 1,
-        transition: "opacity 0.3s ease-out, clip-path 0.3s ease-out, transform 0.5s ease-out",
+        transition:
+          "opacity 0.3s ease-out, clip-path 0.3s ease-out, transform 0.5s ease-out",
         transform: imageScale,
       };
     }
@@ -149,11 +148,21 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
         transform: imageScale,
       };
     }
-    // Sweeping: snap clip to 0, then animate sweep + opacity back
+    if (phase === "sweep-ready") {
+      // Starting position for sweep: clip fully hidden, no transition
+      return {
+        clipPath: "inset(0 100% 0 0)",
+        opacity: 0,
+        transition: "none",
+        transform: imageScale,
+      };
+    }
+    // phase === "sweeping": animate from 0 to watchPercent
     return {
       clipPath: `inset(0 ${100 - watchPercent}% 0 0)`,
       opacity: 1,
-      transition: "opacity 0.15s ease-out, clip-path 0.6s ease-out, transform 0.5s ease-out",
+      transition:
+        "opacity 0.2s ease-out, clip-path 0.6s ease-out, transform 0.5s ease-out",
       transform: imageScale,
     };
   })();
@@ -180,7 +189,6 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
         />
         {/* Color layer - opacity fade + clip sweep */}
         <Image
-          ref={colorRef}
           src={getImageUrl(item.posterPath)}
           alt=""
           fill
