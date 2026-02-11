@@ -11,6 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Save, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { getImageUrl } from "@/lib/tmdb";
@@ -24,15 +34,23 @@ import {
 } from "@/app/admin/_actions/media";
 import type { MediaItem, Tag, TvProgress, MovieProgress } from "@/db/schema";
 
+interface CastMember {
+  id: number;
+  name: string;
+  character: string;
+  profile_path: string | null;
+}
+
 interface EditFormProps {
   item: MediaItem & {
     progress: TvProgress | MovieProgress | null;
     tags: Tag[];
   };
   allTags: Tag[];
+  cast: CastMember[];
 }
 
-export function MediaEditForm({ item, allTags: initialTags }: EditFormProps) {
+export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
@@ -50,6 +68,9 @@ export function MediaEditForm({ item, allTags: initialTags }: EditFormProps) {
   );
   const [newTagName, setNewTagName] = useState("");
   const [addingTag, setAddingTag] = useState(false);
+
+  // Tag delete confirmation
+  const [tagToDelete, setTagToDelete] = useState<{ id: number; name: string } | null>(null);
 
   // TV Progress
   const tvProg = item.mediaType === "tv" && item.progress && "currentSeason" in item.progress
@@ -124,15 +145,17 @@ export function MediaEditForm({ item, allTags: initialTags }: EditFormProps) {
     }
   };
 
-  const handleDeleteTag = async (tagId: number, tagName: string) => {
-    if (!confirm(`确定删除标签「${tagName}」？将从所有影视条目中移除。`)) return;
+  const handleDeleteTag = async () => {
+    if (!tagToDelete) return;
     try {
-      await deleteTag(tagId);
-      setAllTags((prev) => prev.filter((t) => t.id !== tagId));
-      setSelectedTags((prev) => prev.filter((id) => id !== tagId));
+      await deleteTag(tagToDelete.id);
+      setAllTags((prev) => prev.filter((t) => t.id !== tagToDelete.id));
+      setSelectedTags((prev) => prev.filter((id) => id !== tagToDelete.id));
       toast.success("标签已删除");
     } catch {
       toast.error("删除失败");
+    } finally {
+      setTagToDelete(null);
     }
   };
 
@@ -140,243 +163,321 @@ export function MediaEditForm({ item, allTags: initialTags }: EditFormProps) {
     tvProg?.seasonDetails ? JSON.parse(tvProg.seasonDetails) : [];
 
   return (
-    <div className="grid gap-6 md:grid-cols-3">
-      {/* Poster + Info */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="relative mx-auto aspect-[2/3] w-full max-w-[200px] overflow-hidden rounded-lg">
-            <Image
-              src={getImageUrl(item.posterPath)}
-              alt={item.title}
-              fill
-              className="object-cover"
-            />
-          </div>
-          <div className="mt-4 space-y-1 text-center">
-            <h2 className="font-semibold">{item.title}</h2>
-            {item.originalTitle && item.originalTitle !== item.title && (
-              <p className="text-sm text-muted-foreground">{item.originalTitle}</p>
-            )}
-            <p className="text-sm text-muted-foreground">
-              {item.mediaType === "tv" ? "剧集" : "电影"}
-              {item.releaseDate && ` · ${item.releaseDate.substring(0, 4)}`}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+    <>
+      {/* Tag delete confirmation */}
+      <AlertDialog open={!!tagToDelete} onOpenChange={(open) => !open && setTagToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除标签</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定删除标签「{tagToDelete?.name}」？将从所有影视条目中移除。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleDeleteTag}>
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      {/* Edit Form */}
-      <div className="md:col-span-2 space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">基本信息</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>状态</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="watching">在看</SelectItem>
-                    <SelectItem value="completed">已看</SelectItem>
-                    <SelectItem value="planned">想看</SelectItem>
-                    <SelectItem value="on_hold">搁置</SelectItem>
-                    <SelectItem value="dropped">弃剧</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>评分 (1-10)</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={rating}
-                  onChange={(e) => setRating(e.target.value)}
-                  placeholder="留空不评分"
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Left column: Poster + Synopsis + Cast */}
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="p-4">
+              <div className="relative mx-auto aspect-[2/3] w-full max-w-[200px] overflow-hidden rounded-lg">
+                <Image
+                  src={getImageUrl(item.posterPath)}
+                  alt={item.title}
+                  fill
+                  className="object-cover"
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>播放链接</Label>
-              <Input
-                value={playUrl}
-                onChange={(e) => setPlayUrl(e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>笔记</Label>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={4}
-                placeholder="写点什么..."
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={isVisible} onCheckedChange={setIsVisible} />
-              <Label>在前台显示</Label>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="mt-4 space-y-1 text-center">
+                <h2 className="font-semibold">{item.title}</h2>
+                {item.originalTitle && item.originalTitle !== item.title && (
+                  <p className="text-sm text-muted-foreground">{item.originalTitle}</p>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  {item.mediaType === "tv" ? "剧集" : "电影"}
+                  {item.releaseDate && ` · ${item.releaseDate.substring(0, 4)}`}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* TV Progress */}
-        {item.mediaType === "tv" && tvProg && (
+          {/* Synopsis */}
+          {item.overview && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">简介</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {item.overview}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Cast */}
+          {cast.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">演员</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {cast.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center gap-2.5"
+                    >
+                      <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-muted">
+                        {member.profile_path ? (
+                          <Image
+                            src={getImageUrl(member.profile_path, "w92")}
+                            alt={member.name}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                            {member.name[0]}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium leading-tight">
+                          {member.name}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {member.character}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Right column: Edit Form */}
+        <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">观看进度</CardTitle>
+              <CardTitle className="text-base">基本信息</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>当前季</Label>
-                  <Select value={currentSeason} onValueChange={setCurrentSeason}>
+                  <Label>状态</Label>
+                  <Select value={status} onValueChange={setStatus}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Array.from(
-                        { length: tvProg.totalSeasons || 1 },
-                        (_, i) => i + 1
-                      ).map((s) => {
-                        const sd = seasonDetails.find((d) => d.season_number === s);
-                        return (
-                          <SelectItem key={s} value={String(s)}>
-                            第 {s} 季{sd ? ` (${sd.episode_count} 集)` : ""}
-                          </SelectItem>
-                        );
-                      })}
+                      <SelectItem value="watching">在看</SelectItem>
+                      <SelectItem value="completed">已看</SelectItem>
+                      <SelectItem value="planned">想看</SelectItem>
+                      <SelectItem value="on_hold">搁置</SelectItem>
+                      <SelectItem value="dropped">弃剧</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>当前集</Label>
+                  <Label>评分 (1-10)</Label>
                   <Input
                     type="number"
-                    min="0"
-                    value={currentEpisode}
-                    onChange={(e) => setCurrentEpisode(e.target.value)}
+                    min="1"
+                    max="10"
+                    value={rating}
+                    onChange={(e) => setRating(e.target.value)}
+                    placeholder="留空不评分"
                   />
                 </div>
               </div>
-              {/* Episode grid */}
-              {seasonDetails.length > 0 && (
-                <div>
-                  <Label className="mb-2 block">集数概览 (第 {currentSeason} 季)</Label>
-                  <div className="flex flex-wrap gap-1">
-                    {Array.from(
-                      {
-                        length:
-                          seasonDetails.find(
-                            (d) => d.season_number === Number(currentSeason)
-                          )?.episode_count || 0,
-                      },
-                      (_, i) => i + 1
-                    ).map((ep) => (
-                      <button
-                        key={ep}
-                        type="button"
-                        onClick={() => setCurrentEpisode(String(ep))}
-                        className={`flex h-8 w-8 items-center justify-center rounded text-xs font-medium transition-colors ${
-                          ep <= Number(currentEpisode)
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-muted-foreground hover:bg-accent"
-                        }`}
-                      >
-                        {ep}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Movie Progress */}
-        {item.mediaType === "movie" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">观看状态</CardTitle>
-            </CardHeader>
-            <CardContent>
+              <div className="space-y-2">
+                <Label>播放链接</Label>
+                <Input
+                  value={playUrl}
+                  onChange={(e) => setPlayUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>笔记</Label>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={4}
+                  placeholder="写点什么..."
+                />
+              </div>
               <div className="flex items-center gap-2">
-                <Switch checked={watched} onCheckedChange={setWatched} />
-                <Label>{watched ? "已观看" : "未观看"}</Label>
+                <Switch checked={isVisible} onCheckedChange={setIsVisible} />
+                <Label>在前台显示</Label>
               </div>
             </CardContent>
           </Card>
-        )}
 
-        {/* Tags */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">标签</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {allTags.map((tag) => (
-                <div key={tag.id} className="group relative inline-flex">
-                  <Badge
-                    variant={selectedTags.includes(tag.id) ? "default" : "outline"}
-                    className="cursor-pointer pr-1.5"
-                    style={
-                      selectedTags.includes(tag.id)
-                        ? { backgroundColor: tag.color || undefined }
-                        : { borderColor: tag.color || undefined }
-                    }
-                    onClick={() => toggleTag(tag.id)}
-                  >
-                    {tag.name}
-                    <button
-                      type="button"
-                      className="ml-1 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/20"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteTag(tag.id, tag.name);
-                      }}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
+          {/* TV Progress */}
+          {item.mediaType === "tv" && tvProg && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">观看进度</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>当前季</Label>
+                    <Select value={currentSeason} onValueChange={setCurrentSeason}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from(
+                          { length: tvProg.totalSeasons || 1 },
+                          (_, i) => i + 1
+                        ).map((s) => {
+                          const sd = seasonDetails.find((d) => d.season_number === s);
+                          return (
+                            <SelectItem key={s} value={String(s)}>
+                              第 {s} 季{sd ? ` (${sd.episode_count} 集)` : ""}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>当前集</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={currentEpisode}
+                      onChange={(e) => setCurrentEpisode(e.target.value)}
+                    />
+                  </div>
                 </div>
-              ))}
-              {allTags.length === 0 && (
-                <p className="text-sm text-muted-foreground">暂无标签</p>
-              )}
-            </div>
-            {/* Inline create tag */}
-            <div className="flex items-center gap-2">
-              <Input
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-                placeholder="添加自定义标签..."
-                className="flex-1"
-                onKeyDown={(e) => e.key === "Enter" && handleCreateTag()}
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={addingTag || !newTagName.trim()}
-                onClick={handleCreateTag}
-              >
-                {addingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                {/* Episode grid */}
+                {seasonDetails.length > 0 && (
+                  <div>
+                    <Label className="mb-2 block">集数概览 (第 {currentSeason} 季)</Label>
+                    <div className="flex flex-wrap gap-1">
+                      {Array.from(
+                        {
+                          length:
+                            seasonDetails.find(
+                              (d) => d.season_number === Number(currentSeason)
+                            )?.episode_count || 0,
+                        },
+                        (_, i) => i + 1
+                      ).map((ep) => (
+                        <button
+                          key={ep}
+                          type="button"
+                          onClick={() => setCurrentEpisode(String(ep))}
+                          className={`flex h-8 w-8 items-center justify-center rounded text-xs font-medium transition-colors ${
+                            ep <= Number(currentEpisode)
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground hover:bg-accent"
+                          }`}
+                        >
+                          {ep}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Save */}
-        <Button onClick={handleSave} disabled={saving} className="w-full">
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-          保存
-        </Button>
+          {/* Movie Progress */}
+          {item.mediaType === "movie" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">观看状态</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <Switch checked={watched} onCheckedChange={setWatched} />
+                  <Label>{watched ? "已观看" : "未观看"}</Label>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Tags */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">标签</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {allTags.map((tag) => (
+                  <div key={tag.id} className="group relative inline-flex">
+                    <Badge
+                      variant={selectedTags.includes(tag.id) ? "default" : "outline"}
+                      className="cursor-pointer pr-1.5"
+                      style={
+                        selectedTags.includes(tag.id)
+                          ? { backgroundColor: tag.color || undefined }
+                          : { borderColor: tag.color || undefined }
+                      }
+                      onClick={() => toggleTag(tag.id)}
+                    >
+                      {tag.name}
+                      <button
+                        type="button"
+                        className="ml-1 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/20"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTagToDelete({ id: tag.id, name: tag.name });
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  </div>
+                ))}
+                {allTags.length === 0 && (
+                  <p className="text-sm text-muted-foreground">暂无标签</p>
+                )}
+              </div>
+              {/* Inline create tag */}
+              <div className="flex items-center gap-2">
+                <Input
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  placeholder="添加自定义标签..."
+                  className="flex-1"
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateTag()}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={addingTag || !newTagName.trim()}
+                  onClick={handleCreateTag}
+                >
+                  {addingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Save */}
+          <Button onClick={handleSave} disabled={saving} className="w-full">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            保存
+          </Button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
