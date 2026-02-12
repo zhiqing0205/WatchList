@@ -83,6 +83,17 @@ const migrationStatements = [
   )`,
   // Add origin_country column if missing
   `ALTER TABLE \`media_items\` ADD COLUMN \`origin_country\` text`,
+  // Add metadata_updated_at column if missing
+  `ALTER TABLE \`media_items\` ADD COLUMN \`metadata_updated_at\` text`,
+  // System logs table
+  `CREATE TABLE IF NOT EXISTS \`system_logs\` (
+    \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+    \`level\` text DEFAULT 'info' NOT NULL,
+    \`action\` text NOT NULL,
+    \`message\` text NOT NULL,
+    \`detail\` text,
+    \`created_at\` text DEFAULT (datetime('now'))
+  )`,
 ];
 
 let migrated = false;

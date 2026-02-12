@@ -26,6 +26,7 @@ export const mediaItems = sqliteTable("media_items", {
   isVisible: integer("is_visible", { mode: "boolean" }).default(true),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+  metadataUpdatedAt: text("metadata_updated_at"),
 });
 
 export const tvProgress = sqliteTable("tv_progress", {
@@ -91,6 +92,15 @@ export const progressHistory = sqliteTable("progress_history", {
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
 
+export const systemLogs = sqliteTable("system_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  level: text("level", { enum: ["info", "warn", "error"] }).notNull().default("info"),
+  action: text("action").notNull(), // e.g. 'media_added', 'media_deleted', 'metadata_refetched', 'cron_job'
+  message: text("message").notNull(),
+  detail: text("detail"), // JSON
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
 // Types
 export type MediaItem = typeof mediaItems.$inferSelect;
 export type NewMediaItem = typeof mediaItems.$inferInsert;
@@ -100,3 +110,4 @@ export type Tag = typeof tags.$inferSelect;
 export type MediaTag = typeof mediaTags.$inferSelect;
 export type SiteConfig = typeof siteConfig.$inferSelect;
 export type ProgressHistory = typeof progressHistory.$inferSelect;
+export type SystemLog = typeof systemLogs.$inferSelect;
