@@ -303,14 +303,24 @@ export function MediaGrid({
 
     const check = () => {
       const el = gridRef.current;
-      if (!el) return;
-      setHasOverflow(el.scrollHeight > el.clientHeight);
+      if (!el || el.children.length === 0) return;
+      // Count columns by finding how many children share the first row's offsetTop
+      const firstTop = (el.children[0] as HTMLElement).offsetTop;
+      let cols = 0;
+      for (let i = 0; i < el.children.length; i++) {
+        if ((el.children[i] as HTMLElement).offsetTop === firstTop) cols++;
+        else break;
+      }
+      const capacity = maxRows * cols;
+      setHasOverflow((overflowTotal ?? items.length) > capacity);
     };
 
     check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, [maxRows, items.length]);
+
+    const ro = new ResizeObserver(check);
+    ro.observe(gridRef.current);
+    return () => ro.disconnect();
+  }, [maxRows, items.length, overflowTotal]);
 
   if (items.length === 0) {
     return (
