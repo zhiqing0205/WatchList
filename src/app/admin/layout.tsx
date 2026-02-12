@@ -10,6 +10,7 @@ import {
   Settings,
   LogOut,
   Film,
+  ScrollText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/admin", label: "仪表盘", icon: LayoutDashboard },
   { href: "/admin/search", label: "搜索添加", icon: Search },
   { href: "/admin/library", label: "影视管理", icon: Library },
+  { href: "/admin/logs", label: "系统日志", icon: ScrollText },
   { href: "/admin/settings", label: "系统设置", icon: Settings },
 ];
 
