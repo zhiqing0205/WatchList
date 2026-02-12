@@ -8,6 +8,9 @@ import {
   RefreshCw,
   Timer,
   Layers,
+  Pencil,
+  Play,
+  CheckCircle2,
 } from "lucide-react";
 
 const levelColors: Record<string, string> = {
@@ -19,7 +22,10 @@ const levelColors: Record<string, string> = {
 const actionConfig: Record<string, { label: string; icon: typeof Plus }> = {
   media_added: { label: "新增影视", icon: Plus },
   media_deleted: { label: "删除影视", icon: Trash2 },
+  media_edited: { label: "编辑影视", icon: Pencil },
   batch_deleted: { label: "批量删除", icon: Layers },
+  batch_completed: { label: "批量完成", icon: CheckCircle2 },
+  progress_updated: { label: "进度更新", icon: Play },
   metadata_refetched: { label: "更新元数据", icon: RefreshCw },
   cron_metadata_refresh: { label: "定时任务", icon: Timer },
 };

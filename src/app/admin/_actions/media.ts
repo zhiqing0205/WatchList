@@ -341,9 +341,11 @@ export async function updateMediaItem(
 
   if (old && data.status && data.status !== old.status) {
     await recordHistory(id, "status_changed", { from: old.status, to: data.status });
+    await writeSystemLog("info", "media_edited", `「${old.title}」状态变更: ${old.status} → ${data.status}`, { id, field: "status", from: old.status, to: data.status });
   }
   if (old && data.rating !== undefined && data.rating !== old.rating) {
     await recordHistory(id, "rating_changed", { from: old.rating, to: data.rating });
+    await writeSystemLog("info", "media_edited", `「${old.title}」评分变更: ${old.rating ?? "无"} → ${data.rating ?? "无"}`, { id, field: "rating", from: old.rating, to: data.rating });
   }
 
   revalidateAll(id);
@@ -386,6 +388,13 @@ export async function updateTvProgress(
     to: `S${data.currentSeason}E${data.currentEpisode}`,
     season: data.currentSeason,
     episode: data.currentEpisode,
+  });
+
+  const [tvItem] = await db.select({ title: mediaItems.title }).from(mediaItems).where(eq(mediaItems.id, mediaItemId)).limit(1);
+  await writeSystemLog("info", "progress_updated", `「${tvItem?.title || mediaItemId}」进度更新至 S${data.currentSeason}E${data.currentEpisode}`, {
+    id: mediaItemId,
+    from: old ? `S${old.currentSeason}E${old.currentEpisode}` : null,
+    to: `S${data.currentSeason}E${data.currentEpisode}`,
   });
 
   revalidateAll(mediaItemId);
@@ -457,6 +466,8 @@ export async function markTvCompleted(mediaItemId: number) {
     await recordHistory(mediaItemId, "status_changed", { from: oldStatus, to: "completed" });
   }
 
+  await writeSystemLog("info", "progress_updated", `「${item?.title || mediaItemId}」标记为全部看完`, { id: mediaItemId });
+
   revalidateAll(mediaItemId);
 }
 
@@ -490,6 +501,9 @@ export async function updateMovieProgress(
     from: watched ? "planned" : "completed",
     to: watched ? "completed" : "planned",
   });
+
+  const [movieItem] = await db.select({ title: mediaItems.title }).from(mediaItems).where(eq(mediaItems.id, mediaItemId)).limit(1);
+  await writeSystemLog("info", "progress_updated", `「${movieItem?.title || mediaItemId}」标记为${watched ? "已观看" : "未观看"}`, { id: mediaItemId, watched });
 
   revalidateAll(mediaItemId);
 }
@@ -538,6 +552,7 @@ export async function batchMarkCompleted(ids: number[]) {
       await recordHistory(id, "status_changed", { from: oldStatus, to: "completed" });
     }
   }
+  await writeSystemLog("info", "batch_completed", `批量标记 ${ids.length} 个条目为已看`, { ids });
   revalidateAll();
 }
 
