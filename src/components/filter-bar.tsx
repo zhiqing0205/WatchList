@@ -21,7 +21,7 @@ const typeFilters = [
   { value: "movie", label: "电影" },
 ];
 
-export function FilterBar({ tags }: { tags: Tag[] }) {
+export function FilterBar({ tags, hideStatus }: { tags: Tag[]; hideStatus?: boolean }) {
   const searchParams = useSearchParams();
   const currentStatus = searchParams.get("status") || "";
   const currentType = searchParams.get("type") || "";
@@ -52,19 +52,21 @@ export function FilterBar({ tags }: { tags: Tag[] }) {
           </Link>
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-muted-foreground mr-1">状态:</span>
-        {statusFilters.map((filter) => (
-          <Link key={filter.value} href={buildUrl("status", filter.value)}>
-            <Badge
-              variant={currentStatus === filter.value ? "default" : "outline"}
-              className="cursor-pointer"
-            >
-              {filter.label}
-            </Badge>
-          </Link>
-        ))}
-      </div>
+      {!hideStatus && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground mr-1">状态:</span>
+          {statusFilters.map((filter) => (
+            <Link key={filter.value} href={buildUrl("status", filter.value)}>
+              <Badge
+                variant={currentStatus === filter.value ? "default" : "outline"}
+                className="cursor-pointer"
+              >
+                {filter.label}
+              </Badge>
+            </Link>
+          ))}
+        </div>
+      )}
       {tags.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground mr-1">标签:</span>

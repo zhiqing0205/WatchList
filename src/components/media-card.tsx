@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getImageUrl, getCountryName } from "@/lib/tmdb";
 import { Badge } from "@/components/ui/badge";
+import { ChevronRight } from "lucide-react";
 import type { MediaItem } from "@/db/schema";
 
 const statusLabels: Record<string, string> = {
@@ -286,10 +287,31 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
 export function MediaGrid({
   items,
   maxRows,
+  overflowHref,
+  overflowTotal,
 }: {
   items: MediaCardItem[];
   maxRows?: number;
+  overflowHref?: string;
+  overflowTotal?: number;
 }) {
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [hasOverflow, setHasOverflow] = useState(false);
+
+  useEffect(() => {
+    if (!maxRows || !gridRef.current) return;
+
+    const check = () => {
+      const el = gridRef.current;
+      if (!el) return;
+      setHasOverflow(el.scrollHeight > el.clientHeight);
+    };
+
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, [maxRows, items.length]);
+
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
@@ -300,21 +322,35 @@ export function MediaGrid({
   }
 
   return (
-    <div
-      className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
-      style={
-        maxRows
-          ? {
-              gridTemplateRows: `repeat(${maxRows}, auto)`,
-              gridAutoRows: 0,
-              overflow: "hidden",
-            }
-          : undefined
-      }
-    >
-      {items.map((item) => (
-        <MediaCard key={item.id} item={item} />
-      ))}
-    </div>
+    <>
+      <div
+        ref={gridRef}
+        className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+        style={
+          maxRows
+            ? {
+                gridTemplateRows: `repeat(${maxRows}, auto)`,
+                gridAutoRows: 0,
+                overflow: "hidden",
+              }
+            : undefined
+        }
+      >
+        {items.map((item) => (
+          <MediaCard key={item.id} item={item} />
+        ))}
+      </div>
+      {maxRows && hasOverflow && overflowHref && (
+        <div className="mt-3 text-center">
+          <Link
+            href={overflowHref}
+            className="inline-flex items-center gap-1 rounded-full border px-4 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            查看全部{overflowTotal ? ` ${overflowTotal} 部` : ""}
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      )}
+    </>
   );
 }

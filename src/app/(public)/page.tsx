@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
-import Link from "next/link";
 import {
   getMediaItemsWithProgress,
   getMediaItemsGroupedByStatus,
@@ -11,7 +10,6 @@ import { MediaGrid } from "@/components/media-card";
 import { FilterBar } from "@/components/filter-bar";
 import { Pagination } from "@/components/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronRight } from "lucide-react";
 
 const statusLabels: Record<string, string> = {
   watching: "在看",
@@ -81,7 +79,7 @@ export default async function HomePage({ searchParams }: Props) {
   return (
     <div className="container mx-auto px-4 py-6">
       <Suspense fallback={<Skeleton className="h-20 w-full" />}>
-        <FilterBar tags={tags} />
+        <FilterBar tags={tags} hideStatus />
       </Suspense>
 
       {groups.length === 0 ? (
@@ -100,29 +98,13 @@ export default async function HomePage({ searchParams }: Props) {
                     {group.total}
                   </span>
                 </h2>
-                {group.total > 6 && (
-                  <Link
-                    href={`/?status=${group.status}`}
-                    className="flex items-center gap-0.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    查看更多
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
-                )}
               </div>
-              {/* Max 3 rows via grid row limit */}
-              <MediaGrid items={group.items} maxRows={3} />
-              {group.total > 6 && (
-                <div className="mt-3 text-center">
-                  <Link
-                    href={`/?status=${group.status}`}
-                    className="inline-flex items-center gap-1 rounded-full border px-4 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    查看全部 {group.total} 部
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-              )}
+              <MediaGrid
+                items={group.items}
+                maxRows={3}
+                overflowHref={`/?status=${group.status}`}
+                overflowTotal={group.total}
+              />
             </section>
           ))}
         </div>
