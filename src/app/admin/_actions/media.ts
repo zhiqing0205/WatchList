@@ -553,7 +553,7 @@ export async function batchDelete(ids: number[]) {
   revalidateAll();
 }
 
-export async function refetchMediaMetadata(id: number) {
+export async function refetchMediaMetadata(id: number, options?: { silent?: boolean }) {
   await ensureMigrated();
   const { getMediaDetails } = await import("@/lib/tmdb");
 
@@ -602,19 +602,32 @@ export async function refetchMediaMetadata(id: number) {
       .where(eq(tvProgress.mediaItemId, id));
   }
 
-  await writeSystemLog("info", "metadata_refetched", `更新元数据「${title}」`, { id, title });
+  if (!options?.silent) {
+    await writeSystemLog("info", "metadata_refetched", `更新元数据「${title}」`, { id, title });
+  }
   revalidateAll(id);
 }
 
 export async function batchRefetchMetadata(ids: number[]) {
   await ensureMigrated();
+  let success = 0;
+  let failed = 0;
+  const errors: string[] = [];
   for (const id of ids) {
     try {
-      await refetchMediaMetadata(id);
-    } catch {
-      // Continue with other items if one fails
+      await refetchMediaMetadata(id, { silent: true });
+      success++;
+    } catch (e) {
+      failed++;
+      errors.push(`ID ${id}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
+  await writeSystemLog(
+    failed > 0 ? "warn" : "info",
+    "metadata_refetched",
+    `批量更新元数据: 成功 ${success}, 失败 ${failed}, 共 ${ids.length}`,
+    { success, failed, total: ids.length, errors: errors.slice(0, 10) }
+  );
   revalidateAll();
 }
 
@@ -903,7 +916,7 @@ export async function refreshAllMetadata() {
 
   for (const item of allItems) {
     try {
-      await refetchMediaMetadata(item.id);
+      await refetchMediaMetadata(item.id, { silent: true });
       success++;
     } catch (e) {
       failed++;
