@@ -1,7 +1,7 @@
 "use server";
 
 import { db, ensureMigrated } from "@/db";
-import { mediaItems, tvProgress, movieProgress, mediaTags, tags, progressHistory } from "@/db/schema";
+import { mediaItems, tvProgress, movieProgress, mediaTags, tags, progressHistory, systemLogs } from "@/db/schema";
 import { eq, desc, asc, sql, and, like, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { TmdbMediaDetails } from "@/lib/tmdb";
@@ -21,6 +21,21 @@ async function recordHistory(mediaItemId: number, action: string, detail: Record
     mediaItemId,
     action,
     detail: JSON.stringify(detail),
+  });
+}
+
+export async function writeSystemLog(
+  level: "info" | "warn" | "error",
+  action: string,
+  message: string,
+  detail?: Record<string, unknown>
+) {
+  await ensureMigrated();
+  await db.insert(systemLogs).values({
+    level,
+    action,
+    message,
+    detail: detail ? JSON.stringify(detail) : null,
   });
 }
 
@@ -118,6 +133,7 @@ export async function addMediaFromTmdb(
   }
 
   await recordHistory(inserted.id, "added", { title, mediaType });
+  await writeSystemLog("info", "media_added", `添加影视「${title}」`, { mediaType, tmdbId: details.id });
 
   revalidateAll();
   return { success: true, id: inserted.id };
@@ -480,7 +496,9 @@ export async function updateMovieProgress(
 
 export async function deleteMediaItem(id: number) {
   await ensureMigrated();
+  const [item] = await db.select({ title: mediaItems.title }).from(mediaItems).where(eq(mediaItems.id, id)).limit(1);
   await db.delete(mediaItems).where(eq(mediaItems.id, id));
+  await writeSystemLog("info", "media_deleted", `删除影视「${item?.title || id}」`, { id });
   revalidateAll();
 }
 
@@ -525,9 +543,13 @@ export async function batchMarkCompleted(ids: number[]) {
 
 export async function batchDelete(ids: number[]) {
   await ensureMigrated();
+  const titles: string[] = [];
   for (const id of ids) {
+    const [item] = await db.select({ title: mediaItems.title }).from(mediaItems).where(eq(mediaItems.id, id)).limit(1);
+    if (item) titles.push(item.title);
     await db.delete(mediaItems).where(eq(mediaItems.id, id));
   }
+  await writeSystemLog("info", "batch_deleted", `批量删除 ${ids.length} 个条目`, { ids, titles });
   revalidateAll();
 }
 
@@ -557,7 +579,7 @@ export async function refetchMediaMetadata(id: number) {
       voteAverage: details.vote_average,
       genres,
       originCountry,
-      updatedAt: sql`datetime('now')`,
+      metadataUpdatedAt: sql`datetime('now')`,
     })
     .where(eq(mediaItems.id, id));
 
@@ -580,6 +602,7 @@ export async function refetchMediaMetadata(id: number) {
       .where(eq(tvProgress.mediaItemId, id));
   }
 
+  await writeSystemLog("info", "metadata_refetched", `更新元数据「${title}」`, { id, title });
   revalidateAll(id);
 }
 
@@ -846,4 +869,54 @@ export async function importMediaByTmdbId(
   const { getMediaDetails } = await import("@/lib/tmdb");
   const details = await getMediaDetails(mediaType, tmdbId);
   return addMediaFromTmdb(details, mediaType);
+}
+
+// Get system logs with pagination
+export async function getSystemLogs(page = 1, limit = 50) {
+  await ensureMigrated();
+  const [items, countResult] = await Promise.all([
+    db
+      .select()
+      .from(systemLogs)
+      .orderBy(desc(systemLogs.createdAt))
+      .limit(limit)
+      .offset((page - 1) * limit),
+    db.select({ count: sql<number>`count(*)` }).from(systemLogs),
+  ]);
+  return {
+    items,
+    total: countResult[0].count,
+    totalPages: Math.ceil(countResult[0].count / limit),
+  };
+}
+
+// Refresh all media metadata (used by cron)
+export async function refreshAllMetadata() {
+  await ensureMigrated();
+  const allItems = await db
+    .select({ id: mediaItems.id, title: mediaItems.title })
+    .from(mediaItems);
+
+  let success = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (const item of allItems) {
+    try {
+      await refetchMediaMetadata(item.id);
+      success++;
+    } catch (e) {
+      failed++;
+      errors.push(`${item.title}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  await writeSystemLog(
+    failed > 0 ? "warn" : "info",
+    "cron_metadata_refresh",
+    `定时刷新元数据完成: 成功 ${success}, 失败 ${failed}, 共 ${allItems.length}`,
+    { success, failed, total: allItems.length, errors: errors.slice(0, 10) }
+  );
+
+  return { success, failed, total: allItems.length };
 }
