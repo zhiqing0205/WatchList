@@ -220,13 +220,13 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
               {cast.length > 0 && (
                 <div className="mt-4 border-t pt-4">
                   <h3 className="mb-3 text-sm font-medium">演员</h3>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {cast.map((member) => (
                       <div
                         key={member.id}
-                        className="flex items-center gap-2.5"
+                        className="flex items-center gap-2 rounded-md p-1.5"
                       >
-                        <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-muted">
+                        <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-muted">
                           {member.profile_path ? (
                             <Image
                               src={getImageUrl(member.profile_path, "w92")}
@@ -241,10 +241,10 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium leading-tight">
+                          <p className="truncate text-xs font-medium leading-tight">
                             {member.name}
                           </p>
-                          <p className="truncate text-xs text-muted-foreground">
+                          <p className="truncate text-[10px] text-muted-foreground">
                             {member.character}
                           </p>
                         </div>
