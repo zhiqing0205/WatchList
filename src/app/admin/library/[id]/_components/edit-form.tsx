@@ -183,8 +183,8 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
       </AlertDialog>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Left column: Poster + Synopsis + Cast */}
-        <div className="space-y-6">
+        {/* Left column: Poster + Synopsis + Cast in one card */}
+        <div>
           <Card>
             <CardContent className="p-4">
               <div className="relative mx-auto aspect-[2/3] w-full max-w-[200px] overflow-hidden rounded-lg">
@@ -205,64 +205,56 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
                   {item.releaseDate && ` · ${item.releaseDate.substring(0, 4)}`}
                 </p>
               </div>
+
+              {/* Synopsis */}
+              {item.overview && (
+                <div className="mt-4 border-t pt-4">
+                  <h3 className="mb-2 text-sm font-medium">简介</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {item.overview}
+                  </p>
+                </div>
+              )}
+
+              {/* Cast */}
+              {cast.length > 0 && (
+                <div className="mt-4 border-t pt-4">
+                  <h3 className="mb-3 text-sm font-medium">演员</h3>
+                  <div className="space-y-2">
+                    {cast.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center gap-2.5"
+                      >
+                        <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-muted">
+                          {member.profile_path ? (
+                            <Image
+                              src={getImageUrl(member.profile_path, "w92")}
+                              alt={member.name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                              {member.name[0]}
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium leading-tight">
+                            {member.name}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {member.character}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
-
-          {/* Synopsis */}
-          {item.overview && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">简介</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {item.overview}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Cast */}
-          {cast.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">演员</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {cast.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center gap-2.5"
-                    >
-                      <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-muted">
-                        {member.profile_path ? (
-                          <Image
-                            src={getImageUrl(member.profile_path, "w92")}
-                            alt={member.name}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-                            {member.name[0]}
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium leading-tight">
-                          {member.name}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {member.character}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         {/* Right column: Edit Form */}
