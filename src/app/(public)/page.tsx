@@ -6,10 +6,11 @@ import {
   getMediaItemsGroupedByStatus,
   getAllTags,
 } from "@/app/admin/_actions/media";
-import { MediaGrid } from "@/components/media-card";
 import { FilterBar } from "@/components/filter-bar";
 import { Pagination } from "@/components/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MediaGrid } from "@/components/media-card";
+import { StatusSection } from "@/components/status-section";
 
 const statusLabels: Record<string, string> = {
   watching: "在看",
@@ -90,22 +91,13 @@ export default async function HomePage({ searchParams }: Props) {
       ) : (
         <div className="mt-6 space-y-10">
           {groups.map((group) => (
-            <section key={group.status}>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">
-                  {statusLabels[group.status] || group.status}
-                  <span className="ml-2 text-sm font-normal text-muted-foreground">
-                    {group.total}
-                  </span>
-                </h2>
-              </div>
-              <MediaGrid
-                items={group.items}
-                maxRows={3}
-                overflowHref={`/?status=${group.status}`}
-                overflowTotal={group.total}
-              />
-            </section>
+            <StatusSection
+              key={group.status}
+              status={group.status}
+              label={statusLabels[group.status] || group.status}
+              items={group.items}
+              total={group.total}
+            />
           ))}
         </div>
       )}
