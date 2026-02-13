@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Save, Loader2, Plus, X } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Save, Loader2, Plus, X, Check, Star } from "lucide-react";
 import { toast } from "sonner";
 import { getImageUrl } from "@/lib/tmdb";
 import {
@@ -31,6 +37,8 @@ import {
   setMediaTags,
   createTag,
   deleteTag,
+  checkMediaInLibrary,
+  importMediaByTmdbId,
 } from "@/app/admin/_actions/media";
 import type { MediaItem, Tag, TvProgress, MovieProgress } from "@/db/schema";
 
@@ -39,6 +47,18 @@ interface CastMember {
   name: string;
   character: string;
   profile_path: string | null;
+}
+
+interface PersonCredit {
+  id: number;
+  title?: string;
+  name?: string;
+  media_type: string;
+  poster_path: string | null;
+  vote_average: number;
+  release_date?: string;
+  first_air_date?: string;
+  character?: string;
 }
 
 interface EditFormProps {
@@ -84,6 +104,90 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
     ? item.progress as MovieProgress
     : null;
   const [watched, setWatched] = useState(movieProg?.watched || false);
+
+  // Filmography dialog
+  const [selectedPerson, setSelectedPerson] = useState<CastMember | null>(null);
+  const [credits, setCredits] = useState<PersonCredit[]>([]);
+  const [creditsLoading, setCreditsLoading] = useState(false);
+  const [displayCount, setDisplayCount] = useState(20);
+  const [libraryMap, setLibraryMap] = useState<Record<number, number>>({});
+  const [importing, setImporting] = useState<Set<number>>(new Set());
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handlePersonClick = async (person: CastMember) => {
+    setSelectedPerson(person);
+    setCreditsLoading(true);
+    setDisplayCount(20);
+    setCredits([]);
+    setLibraryMap({});
+
+    try {
+      const res = await fetch(`/api/tmdb/person/${person.id}/credits`);
+      const data = await res.json();
+      const sortedCredits = (data.cast || [])
+        .filter(
+          (c: PersonCredit) =>
+            c.poster_path &&
+            (c.media_type === "movie" || c.media_type === "tv")
+        )
+        .sort(
+          (a: PersonCredit, b: PersonCredit) =>
+            (b.vote_average || 0) - (a.vote_average || 0)
+        );
+      setCredits(sortedCredits);
+
+      if (sortedCredits.length > 0) {
+        const tmdbIds = sortedCredits.map((c: PersonCredit) => c.id);
+        const uniqueIds = [...new Set(tmdbIds)] as number[];
+        const map = await checkMediaInLibrary(uniqueIds);
+        setLibraryMap(map);
+      }
+    } catch {
+      toast.error("获取演员作品失败");
+    } finally {
+      setCreditsLoading(false);
+    }
+  };
+
+  const handleImport = async (credit: PersonCredit) => {
+    const mediaType = credit.media_type as "movie" | "tv";
+    setImporting((prev) => new Set(prev).add(credit.id));
+    try {
+      const result = await importMediaByTmdbId(credit.id, mediaType);
+      if (result.success) {
+        toast.success("导入成功");
+        setLibraryMap((prev) => ({ ...prev, [credit.id]: result.id! }));
+      } else if (result.error) {
+        toast.info(result.error);
+        if (result.id)
+          setLibraryMap((prev) => ({ ...prev, [credit.id]: result.id! }));
+      }
+    } catch {
+      toast.error("导入失败");
+    } finally {
+      setImporting((prev) => {
+        const next = new Set(prev);
+        next.delete(credit.id);
+        return next;
+      });
+    }
+  };
+
+  // Infinite scroll handler for filmography
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+      setDisplayCount((prev) => Math.min(prev + 20, credits.length));
+    }
+  }, [credits.length]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", handleScroll);
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [handleScroll, selectedPerson]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -222,9 +326,11 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
                   <h3 className="mb-3 text-sm font-medium">演员</h3>
                   <div className="grid grid-cols-2 gap-2">
                     {cast.map((member) => (
-                      <div
+                      <button
                         key={member.id}
-                        className="flex items-center gap-2 rounded-md p-1.5"
+                        type="button"
+                        onClick={() => handlePersonClick(member)}
+                        className="flex items-center gap-2 rounded-md p-1.5 text-left transition-colors hover:bg-accent"
                       >
                         <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-muted">
                           {member.profile_path ? (
@@ -248,7 +354,7 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
                             {member.character}
                           </p>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -470,6 +576,133 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
           </Button>
         </div>
       </div>
+
+      {/* Filmography dialog */}
+      <Dialog
+        open={!!selectedPerson}
+        onOpenChange={(open) => !open && setSelectedPerson(null)}
+      >
+        <DialogContent className="flex max-h-[80vh] max-w-2xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b px-6 py-4">
+            <DialogTitle className="flex items-center gap-3">
+              {selectedPerson?.profile_path && (
+                <div className="relative h-10 w-10 overflow-hidden rounded-full bg-muted">
+                  <Image
+                    src={getImageUrl(selectedPerson.profile_path, "w92")}
+                    alt=""
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              )}
+              <div>
+                <span>{selectedPerson?.name}</span>
+                {!creditsLoading && credits.length > 0 && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    {credits.length} 部作品
+                  </span>
+                )}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto overscroll-contain"
+            style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(var(--muted-foreground) / 0.3) transparent" }}
+          >
+            {creditsLoading ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">加载中...</p>
+              </div>
+            ) : credits.length === 0 ? (
+              <p className="py-12 text-center text-muted-foreground">
+                暂无作品信息
+              </p>
+            ) : (
+              <div className="divide-y">
+                {credits.slice(0, displayCount).map((credit, idx) => {
+                  const title = credit.title || credit.name || "Unknown";
+                  const year = (
+                    credit.release_date || credit.first_air_date
+                  )?.substring(0, 4);
+                  const inLibrary = libraryMap[credit.id] !== undefined;
+
+                  return (
+                    <div
+                      key={`${credit.id}-${credit.media_type}-${idx}`}
+                      className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-accent/50"
+                    >
+                      <div className="relative h-[72px] w-12 flex-shrink-0 overflow-hidden rounded-md bg-muted shadow-sm">
+                        {credit.poster_path && (
+                          <Image
+                            src={getImageUrl(credit.poster_path, "w92")}
+                            alt={title}
+                            fill
+                            className="object-cover"
+                          />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{title}</p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                          <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                            {credit.media_type === "tv" ? "剧集" : "电影"}
+                          </Badge>
+                          {year && <span>{year}</span>}
+                          {credit.vote_average > 0 && (
+                            <span className="flex items-center gap-0.5">
+                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                              {credit.vote_average.toFixed(1)}
+                            </span>
+                          )}
+                        </div>
+                        {credit.character && (
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground/70">
+                            饰 {credit.character}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0">
+                        {inLibrary ? (
+                          <Badge
+                            variant="secondary"
+                            className="gap-1 bg-green-500/10 text-green-600 hover:bg-green-500/15"
+                          >
+                            <Check className="h-3 w-3" />
+                            已在库中
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1 text-xs"
+                            onClick={() => handleImport(credit)}
+                            disabled={importing.has(credit.id)}
+                          >
+                            {importing.has(credit.id) ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Plus className="h-3 w-3" />
+                            )}
+                            导入
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {!creditsLoading && displayCount < credits.length && (
+              <div className="flex justify-center border-t py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
