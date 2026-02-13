@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Plus, Check, Loader2 } from "lucide-react";
 import { getImageUrl } from "@/lib/tmdb";
-import { addMediaFromTmdb } from "@/app/admin/_actions/media";
+import { addMediaFromTmdb, checkMediaInLibrary } from "@/app/admin/_actions/media";
 import { toast } from "sonner";
 import type { TmdbSearchResult, TmdbMediaDetails } from "@/lib/tmdb";
 
@@ -18,6 +18,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
+  const [libraryIds, setLibraryIds] = useState<Set<number>>(new Set());
   const [searchType, setSearchType] = useState<"multi" | "movie" | "tv">("multi");
 
   const handleSearch = useCallback(async () => {
@@ -28,13 +29,23 @@ export default function SearchPage() {
         `/api/tmdb/search?query=${encodeURIComponent(query)}&type=${searchType}`
       );
       const data = await res.json();
-      setResults(
+      const filtered =
         data.results?.filter(
           (r: TmdbSearchResult) =>
             r.media_type !== "person" &&
             (r.media_type === "movie" || r.media_type === "tv" || r.title || r.name)
-        ) || []
-      );
+        ) || [];
+      setResults(filtered);
+
+      // Check which results are already in library
+      if (filtered.length > 0) {
+        const tmdbIds = filtered.map((r: TmdbSearchResult) => r.id);
+        const map = await checkMediaInLibrary(tmdbIds);
+        setLibraryIds(new Set(Object.keys(map).map(Number)));
+      } else {
+        setLibraryIds(new Set());
+      }
+      setAddedIds(new Set());
     } catch {
       toast.error("搜索失败");
     } finally {
@@ -111,6 +122,8 @@ export default function SearchPage() {
           const date = result.release_date || result.first_air_date;
           const type = result.media_type || (result.title ? "movie" : "tv");
           const isAdded = addedIds.has(result.id);
+          const inLibrary = libraryIds.has(result.id);
+          const isInLib = isAdded || inLibrary;
 
           return (
             <Card key={`${type}-${result.id}`}>
@@ -146,18 +159,18 @@ export default function SearchPage() {
                 <div className="flex items-center">
                   <Button
                     size="sm"
-                    variant={isAdded ? "secondary" : "default"}
-                    disabled={addingId === result.id || isAdded}
+                    variant={isInLib ? "secondary" : "default"}
+                    disabled={addingId === result.id || isInLib}
                     onClick={() => handleAdd(result)}
                   >
                     {addingId === result.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : isAdded ? (
+                    ) : isInLib ? (
                       <Check className="h-4 w-4" />
                     ) : (
                       <Plus className="h-4 w-4" />
                     )}
-                    {isAdded ? "已添加" : "添加"}
+                    {isInLib ? "已在库中" : "添加"}
                   </Button>
                 </div>
               </CardContent>
