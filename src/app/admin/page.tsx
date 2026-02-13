@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { getDashboardStats } from "@/app/admin/_actions/media";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Film, Tv, Eye, CheckCircle, Clock, Pause, XCircle, History } from "lucide-react";
+import { formatShortDateCST } from "@/lib/utils";
 import Link from "next/link";
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -162,7 +163,7 @@ export default async function AdminDashboard() {
                     </p>
                   </div>
                   <span className="text-xs text-muted-foreground flex-shrink-0">
-                    {row.history.createdAt?.substring(5, 16).replace("T", " ")}
+                    {formatShortDateCST(row.history.createdAt)}
                   </span>
                 </Link>
               );
