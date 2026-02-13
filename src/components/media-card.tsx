@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, createContext, useContext } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { getImageUrl, getCountryName } from "@/lib/tmdb";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Star, Play } from "lucide-react";
 import type { MediaItem } from "@/db/schema";
 
 const statusLabels: Record<string, string> = {
@@ -40,6 +41,13 @@ export type MediaCardItem = MediaItem & {
   tvProgress?: TvProgressInfo | null;
   movieProgress?: MovieProgressInfo | null;
 };
+
+// Context for grid-level hover
+const GridHoverContext = createContext<{
+  hoveredId: number | null;
+  onHoverStart: (id: number, el: HTMLElement) => void;
+  onHoverEnd: () => void;
+}>({ hoveredId: null, onHoverStart: () => {}, onHoverEnd: () => {} });
 
 function computeWatchPercent(item: MediaCardItem): number {
   if (item.mediaType === "movie") {
@@ -108,6 +116,10 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
     item.rating || (item.voteAverage ? parseFloat(item.voteAverage.toFixed(1)) : null);
   const countryName = getCountryName(item.originCountry);
 
+  const { hoveredId, onHoverStart, onHoverEnd } = useContext(GridHoverContext);
+  const dimmed = hoveredId !== null && hoveredId !== item.id;
+
+  const cardRef = useRef<HTMLAnchorElement>(null);
   const [phase, setPhase] = useState<AnimPhase>("idle");
   const [hovered, setHovered] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,6 +134,10 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
     timerRef.current = setTimeout(() => {
       setPhase("sweep-ready");
     }, ZOOM_DURATION);
+
+    if (cardRef.current) {
+      onHoverStart(item.id, cardRef.current);
+    }
 
     // Start rating counter animation
     if (ratingValue && ratingValue > 0) {
@@ -138,7 +154,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
       };
       rafRef.current = requestAnimationFrame(animate);
     }
-  }, [ratingValue]);
+  }, [ratingValue, item.id, onHoverStart]);
 
   const handleMouseLeave = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -146,7 +162,8 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
     setHovered(false);
     setPhase("idle");
     setAnimatedRating(null);
-  }, []);
+    onHoverEnd();
+  }, [onHoverEnd]);
 
   // When React renders "sweep-ready", schedule the actual sweep on next frame
   useEffect(() => {
@@ -171,7 +188,6 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
       };
     }
     if (phase === "zooming") {
-      // Fade color away in sync with zoom — same duration & easing
       return {
         clipPath: `inset(0 ${100 - watchPercent}% 0 0)`,
         opacity: 0,
@@ -180,7 +196,6 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
       };
     }
     if (phase === "sweep-ready") {
-      // Starting position for sweep: clip fully hidden, no transition
       return {
         clipPath: "inset(0 100% 0 0)",
         opacity: 0,
@@ -188,7 +203,6 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
         transform: imageScale,
       };
     }
-    // phase === "sweeping": animate from 0 to watchPercent
     return {
       clipPath: `inset(0 ${100 - watchPercent}% 0 0)`,
       opacity: 1,
@@ -207,8 +221,13 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
 
   return (
     <Link
+      ref={cardRef}
       href={`/${item.id}`}
       className="group block"
+      style={{
+        opacity: dimmed ? 0.35 : 1,
+        transition: "opacity 0.3s ease",
+      }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -284,6 +303,143 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
   );
 }
 
+/* ── Preview Popup ──────────────────────────────────── */
+
+function PreviewPopup({
+  item,
+  anchorRect,
+}: {
+  item: MediaCardItem;
+  anchorRect: DOMRect;
+}) {
+  const popupRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const genres: string[] = item.genres ? JSON.parse(item.genres) : [];
+  const tvStats = item.mediaType === "tv" ? getTvStats(item.tvProgress) : null;
+  const countryName = getCountryName(item.originCountry);
+  const ratingValue = item.rating || item.voteAverage;
+
+  useEffect(() => {
+    const popup = popupRef.current;
+    if (!popup) return;
+
+    const pw = popup.offsetWidth;
+    const ph = popup.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const gap = 12;
+
+    let left: number;
+    let top: number;
+
+    // Prefer right side
+    if (anchorRect.right + gap + pw < vw) {
+      left = anchorRect.right + gap;
+    } else if (anchorRect.left - gap - pw > 0) {
+      left = anchorRect.left - gap - pw;
+    } else {
+      left = Math.max(8, (vw - pw) / 2);
+    }
+
+    // Vertically centered on the card
+    top = anchorRect.top + anchorRect.height / 2 - ph / 2;
+    if (top < 8) top = 8;
+    if (top + ph > vh - 8) top = vh - 8 - ph;
+
+    setPos({ top, left });
+  }, [anchorRect]);
+
+  return createPortal(
+    <div
+      ref={popupRef}
+      className="fixed z-50 w-72 rounded-xl border bg-card/95 p-4 shadow-2xl backdrop-blur-md"
+      style={{
+        top: pos?.top ?? -9999,
+        left: pos?.left ?? -9999,
+        opacity: pos ? 1 : 0,
+        transition: "opacity 0.2s ease",
+        pointerEvents: "none",
+      }}
+    >
+      {/* Title */}
+      <h3 className="text-base font-bold leading-tight">{item.title}</h3>
+      {item.originalTitle && item.originalTitle !== item.title && (
+        <p className="mt-0.5 text-xs text-muted-foreground">{item.originalTitle}</p>
+      )}
+
+      {/* Meta */}
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+        <span>{item.mediaType === "tv" ? "剧集" : "电影"}</span>
+        {item.releaseDate && (
+          <>
+            <span className="text-muted-foreground/40">·</span>
+            <span>{item.releaseDate}</span>
+          </>
+        )}
+        {countryName && (
+          <>
+            <span className="text-muted-foreground/40">·</span>
+            <span>{countryName}</span>
+          </>
+        )}
+      </div>
+
+      {/* Genres */}
+      {genres.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {genres.slice(0, 4).map((g) => (
+            <Badge key={g} variant="outline" className="text-[10px] px-1.5 py-0">
+              {g}
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* Rating + Progress */}
+      <div className="mt-2.5 flex items-center gap-3">
+        {ratingValue != null && ratingValue > 0 && (
+          <div className="flex items-center gap-1">
+            <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+            <span className="text-sm font-semibold">{ratingValue.toFixed(1)}</span>
+          </div>
+        )}
+        {tvStats && tvStats.totalEpisodes > 0 && (
+          <span className="text-xs text-muted-foreground">
+            {tvStats.totalSeasons}季 {tvStats.totalEpisodes}集
+          </span>
+        )}
+        {item.tvProgress && (item.tvProgress.currentEpisode || 0) > 0 && (
+          <span className="text-xs font-mono text-primary">
+            S{String(item.tvProgress.currentSeason).padStart(2, "0")}
+            E{String(item.tvProgress.currentEpisode).padStart(2, "0")}
+          </span>
+        )}
+        {item.movieProgress?.watched && (
+          <span className="text-xs text-green-500">已观看</span>
+        )}
+      </div>
+
+      {/* Overview */}
+      {item.overview && (
+        <p className="mt-2.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+          {item.overview}
+        </p>
+      )}
+
+      {/* Play URL hint */}
+      {item.playUrl && (
+        <div className="mt-2.5 flex items-center gap-1 text-xs text-primary">
+          <Play className="h-3 w-3" />
+          <span>可播放</span>
+        </div>
+      )}
+    </div>,
+    document.body
+  );
+}
+
+/* ── MediaGrid ──────────────────────────────────────── */
+
 export function MediaGrid({
   items,
   maxRows,
@@ -298,13 +454,38 @@ export function MediaGrid({
   const gridRef = useRef<HTMLDivElement>(null);
   const [hasOverflow, setHasOverflow] = useState(false);
 
+  // Hover preview state
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [hoveredRect, setHoveredRect] = useState<DOMRect | null>(null);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const hoveredItem = hoveredId !== null ? items.find((i) => i.id === hoveredId) : null;
+
+  const handleHoverStart = useCallback((id: number, el: HTMLElement) => {
+    setHoveredId(id);
+    setHoveredRect(el.getBoundingClientRect());
+    setShowPreview(false);
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    previewTimerRef.current = setTimeout(() => {
+      // Re-read rect in case scroll moved
+      setHoveredRect(el.getBoundingClientRect());
+      setShowPreview(true);
+    }, ZOOM_DURATION);
+  }, []);
+
+  const handleHoverEnd = useCallback(() => {
+    setHoveredId(null);
+    setShowPreview(false);
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+  }, []);
+
   useEffect(() => {
     if (!maxRows || !gridRef.current) return;
 
     const check = () => {
       const el = gridRef.current;
       if (!el || el.children.length === 0) return;
-      // Count columns by finding how many children share the first row's offsetTop
       const firstTop = (el.children[0] as HTMLElement).offsetTop;
       let cols = 0;
       for (let i = 0; i < el.children.length; i++) {
@@ -332,7 +513,9 @@ export function MediaGrid({
   }
 
   return (
-    <>
+    <GridHoverContext.Provider
+      value={{ hoveredId, onHoverStart: handleHoverStart, onHoverEnd: handleHoverEnd }}
+    >
       <div
         ref={gridRef}
         className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
@@ -361,6 +544,10 @@ export function MediaGrid({
           </Link>
         </div>
       )}
-    </>
+      {/* Preview popup */}
+      {showPreview && hoveredItem && hoveredRect && (
+        <PreviewPopup item={hoveredItem} anchorRect={hoveredRect} />
+      )}
+    </GridHoverContext.Provider>
   );
 }
