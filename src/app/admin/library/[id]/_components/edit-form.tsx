@@ -306,7 +306,7 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
                 )}
                 <p className="text-sm text-muted-foreground">
                   {item.mediaType === "tv" ? "剧集" : "电影"}
-                  {item.releaseDate && ` · ${item.releaseDate.substring(0, 4)}`}
+                  {item.releaseDate && ` · ${item.releaseDate}`}
                 </p>
               </div>
 

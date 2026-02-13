@@ -39,7 +39,7 @@ function getDate(item: MediaCardItem): string {
 
 const sortFields: { field: SortField; label: string }[] = [
   { field: "rating", label: "评分" },
-  { field: "date", label: "日期" },
+  { field: "date", label: "上映时间" },
   { field: "episodes", label: "集数" },
 ];
 
@@ -51,7 +51,7 @@ interface StatusSectionProps {
 }
 
 export function StatusSection({ status, label, items, total }: StatusSectionProps) {
-  const [sort, setSort] = useState<SortState>(null);
+  const [sort, setSort] = useState<SortState>({ field: "date", dir: "desc" });
 
   const toggleSort = (field: SortField) => {
     setSort((prev) => {

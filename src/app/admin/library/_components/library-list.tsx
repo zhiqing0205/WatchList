@@ -271,7 +271,7 @@ export function LibraryList({ items }: { items: MediaItemWithProgress[] }) {
                 <StatusControl mediaItemId={item.id} status={item.status} />
               </div>
               <p className="text-xs text-muted-foreground">
-                {item.releaseDate?.substring(0, 4)}
+                {item.releaseDate || ""}
                 {item.voteAverage
                   ? ` · ⭐ ${item.voteAverage.toFixed(1)}`
                   : ""}

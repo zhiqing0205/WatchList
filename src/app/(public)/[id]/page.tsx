@@ -146,7 +146,7 @@ export default async function MediaDetailPage({ params }: Props) {
                   </Badge>
                   {item.releaseDate && (
                     <span className="text-sm text-white/60">
-                      {item.releaseDate.substring(0, 4)}
+                      {item.releaseDate}
                     </span>
                   )}
                   {item.originCountry && (
