@@ -352,13 +352,15 @@ function PreviewPopup({
   return createPortal(
     <div
       ref={popupRef}
-      className="fixed z-50 w-72 rounded-xl border bg-card/95 p-4 shadow-2xl backdrop-blur-md"
+      className="fixed z-50 w-80 max-w-[40vw] rounded-xl border bg-card/95 p-4 shadow-2xl backdrop-blur-md"
       style={{
         top: pos?.top ?? -9999,
         left: pos?.left ?? -9999,
+        maxHeight: "calc(100vh - 32px)",
         opacity: pos ? 1 : 0,
         transition: "opacity 0.2s ease",
         pointerEvents: "none",
+        overflow: "hidden",
       }}
     >
       {/* Title */}
@@ -421,7 +423,7 @@ function PreviewPopup({
 
       {/* Overview */}
       {item.overview && (
-        <p className="mt-2.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
           {item.overview}
         </p>
       )}
