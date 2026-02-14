@@ -9,8 +9,8 @@ import {
 import { FilterBar } from "@/components/filter-bar";
 import { Pagination } from "@/components/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MediaGrid } from "@/components/media-card";
 import { StatusSection } from "@/components/status-section";
+import { SortedMediaGrid } from "@/components/sort-controls";
 
 const statusLabels: Record<string, string> = {
   watching: "在看",
@@ -59,7 +59,7 @@ export default async function HomePage({ searchParams }: Props) {
           <FilterBar tags={tags} />
         </Suspense>
         <div className="mt-6">
-          <MediaGrid items={items} />
+          <SortedMediaGrid items={items} />
         </div>
         <Pagination
           currentPage={page}
