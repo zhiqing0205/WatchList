@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -31,6 +31,7 @@ import {
   batchMarkCompleted,
   batchDelete,
   batchRefetchMetadata,
+  getMediaItemsWithProgress,
 } from "@/app/admin/_actions/media";
 import {
   TvProgressControl,
@@ -89,12 +90,80 @@ const confirmConfig: Record<
   },
 };
 
-export function LibraryList({ items }: { items: MediaItemWithProgress[] }) {
+const PAGE_SIZE = 20;
+
+interface LibraryListProps {
+  initialItems: MediaItemWithProgress[];
+  total: number;
+  filterStatus?: string;
+  filterType?: string;
+  filterSearch?: string;
+}
+
+export function LibraryList({
+  initialItems,
+  total,
+  filterStatus,
+  filterType,
+  filterSearch,
+}: LibraryListProps) {
   const router = useRouter();
+  const [items, setItems] = useState(initialItems);
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [pending, startTransition] = useTransition();
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [globalLoading, setGlobalLoading] = useState(false);
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const hasMore = items.length < total;
+
+  // Reset when filters change (initial items from server)
+  useEffect(() => {
+    setItems(initialItems);
+    setPage(1);
+    setSelected(new Set());
+  }, [initialItems]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const result = await getMediaItemsWithProgress({
+        page: nextPage,
+        status: filterStatus,
+        mediaType: filterType,
+        search: filterSearch,
+        limit: PAGE_SIZE,
+      });
+      setItems((prev) => [...prev, ...result.items]);
+      setPage(nextPage);
+    } catch {
+      toast.error("加载更多失败");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, page, filterStatus, filterType, filterSearch]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   const toggleSelect = (id: number) => {
     setSelected((prev) => {
@@ -316,6 +385,22 @@ export function LibraryList({ items }: { items: MediaItemWithProgress[] }) {
               <Link href="/admin/search">去搜索添加</Link>
             </Button>
           </div>
+        )}
+
+        {/* Infinite scroll sentinel */}
+        {hasMore && (
+          <div ref={sentinelRef} className="flex justify-center py-6">
+            {loadingMore && (
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            )}
+          </div>
+        )}
+
+        {/* Total count */}
+        {items.length > 0 && !hasMore && (
+          <p className="py-4 text-center text-xs text-muted-foreground">
+            共 {total} 条记录
+          </p>
         )}
       </div>
     </>

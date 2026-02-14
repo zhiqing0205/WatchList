@@ -5,7 +5,6 @@ import Link from "next/link";
 import { getMediaItemsWithProgress } from "@/app/admin/_actions/media";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pagination } from "@/components/pagination";
 import { Plus } from "lucide-react";
 import { LibraryList } from "./_components/library-list";
 import { LibrarySearch } from "./_components/library-search";
@@ -24,20 +23,13 @@ interface Props {
 
 export default async function LibraryPage({ searchParams }: Props) {
   const params = await searchParams;
-  const page = Number(params.page) || 1;
-  const { items, totalPages } = await getMediaItemsWithProgress({
-    page,
+  const { items, total } = await getMediaItemsWithProgress({
+    page: 1,
     status: params.status,
     mediaType: params.type,
     search: params.search,
     limit: 20,
   });
-
-  const urlParams = new URLSearchParams();
-  if (params.status) urlParams.set("status", params.status);
-  if (params.type) urlParams.set("type", params.type);
-  if (params.search) urlParams.set("search", params.search);
-  const baseUrl = `/admin/library${urlParams.toString() ? `?${urlParams.toString()}` : ""}`;
 
   return (
     <div className="space-y-6">
@@ -77,10 +69,14 @@ export default async function LibraryPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      {/* Media list with checkboxes */}
-      <LibraryList items={items} />
-
-      <Pagination currentPage={page} totalPages={totalPages} baseUrl={baseUrl} />
+      {/* Media list with infinite scroll */}
+      <LibraryList
+        initialItems={items}
+        total={total}
+        filterStatus={params.status}
+        filterType={params.type}
+        filterSearch={params.search}
+      />
     </div>
   );
 }
