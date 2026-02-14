@@ -82,17 +82,35 @@ export function RouteProgress() {
   if (!visible) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[100] h-0.5">
+    <div className="fixed top-0 left-0 right-0 z-[100] h-1">
       <div
-        className="h-full bg-primary shadow-sm shadow-primary/50"
+        className="relative h-full bg-primary"
         style={{
           width: `${progress}%`,
           transition:
             progress === 100
               ? "width 0.2s ease-out"
               : "width 0.4s ease-out",
+          boxShadow: "0 0 8px 2px hsl(var(--primary) / 0.6)",
         }}
-      />
+      >
+        {/* Shimmer highlight */}
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)",
+            backgroundSize: "200% 100%",
+            animation: "shimmer 1.2s ease-in-out infinite",
+          }}
+        />
+      </div>
+      <style jsx>{`
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
     </div>
   );
 }
