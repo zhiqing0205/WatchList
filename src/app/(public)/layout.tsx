@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Film } from "lucide-react";
+import { Film, Settings } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 
 export default function PublicLayout({
   children,
@@ -38,6 +39,11 @@ export default function PublicLayout({
               </Link>
             </nav>
             <ThemeToggle />
+            <Button variant="ghost" size="icon" asChild className="h-8 w-8">
+              <Link href="/admin">
+                <Settings className="h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </header>
