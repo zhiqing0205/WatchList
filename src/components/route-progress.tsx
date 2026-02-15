@@ -4,18 +4,20 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
+const SHOW_DELAY = 200; // Only show overlay if navigation takes longer than this
+
 export function RouteProgress() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [visible, setVisible] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navKeyRef = useRef(`${pathname}?${searchParams.toString()}`);
 
   const cleanup = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
+    if (showTimerRef.current) {
+      clearTimeout(showTimerRef.current);
+      showTimerRef.current = null;
     }
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
@@ -25,14 +27,19 @@ export function RouteProgress() {
 
   const startLoading = useCallback(() => {
     cleanup();
-    setVisible(true);
+    // Delay showing the overlay — fast navigations won't trigger it
+    showTimerRef.current = setTimeout(() => {
+      setVisible(true);
+    }, SHOW_DELAY);
   }, [cleanup]);
 
   const finishLoading = useCallback(() => {
     cleanup();
+    // If overlay is visible, hide it after a brief moment
+    // If it hasn't appeared yet, the cleanup() already cancelled the timer
     hideTimerRef.current = setTimeout(() => {
       setVisible(false);
-    }, 150);
+    }, 100);
   }, [cleanup]);
 
   // Detect navigation completion
