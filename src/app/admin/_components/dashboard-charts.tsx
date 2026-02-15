@@ -10,9 +10,6 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  AreaChart,
-  Area,
-  CartesianGrid,
 } from "recharts";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -31,6 +28,20 @@ const STATUS_LABELS: Record<string, string> = {
   dropped: "弃剧",
 };
 
+// Use Tailwind class on SVG text so it adapts to light/dark theme
+function ThemedTick({ x, y, payload, textAnchor }: any) {
+  return (
+    <text
+      x={x}
+      y={y}
+      textAnchor={textAnchor || "end"}
+      className="fill-muted-foreground text-[11px]"
+    >
+      {payload.value}
+    </text>
+  );
+}
+
 interface StatusPieProps {
   byStatus: Record<string, number>;
   total: number;
@@ -46,16 +57,16 @@ export function StatusPieChart({ byStatus, total, tvCount, movieCount }: StatusP
   }));
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="relative h-36 w-36 flex-shrink-0">
+    <div className="flex items-center gap-6">
+      <div className="relative h-40 w-40 flex-shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="50%"
-              innerRadius={38}
-              outerRadius={65}
+              innerRadius={42}
+              outerRadius={72}
               dataKey="value"
               strokeWidth={2}
               stroke="hsl(var(--card))"
@@ -71,18 +82,18 @@ export function StatusPieChart({ byStatus, total, tvCount, movieCount }: StatusP
           <span className="text-[10px] text-muted-foreground">总计</span>
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         {data.map((d) => (
-          <div key={d.name} className="flex items-center gap-2 text-xs">
+          <div key={d.name} className="flex items-center gap-2 text-sm">
             <span
-              className="h-2.5 w-2.5 rounded-full"
+              className="h-2.5 w-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: d.color }}
             />
             <span className="text-muted-foreground">{d.name}</span>
             <span className="font-semibold">{d.value}</span>
           </div>
         ))}
-        <div className="mt-1 border-t pt-1.5 text-[11px] text-muted-foreground">
+        <div className="mt-1 border-t pt-2 text-xs text-muted-foreground">
           剧集 {tvCount} · 电影 {movieCount}
         </div>
       </div>
@@ -98,128 +109,29 @@ export function GenreBarChart({ data }: GenreBarProps) {
   if (data.length === 0) return <p className="text-sm text-muted-foreground">暂无数据</p>;
 
   return (
-    <ResponsiveContainer width="100%" height={data.length * 28 + 8}>
+    <ResponsiveContainer width="100%" height={data.length * 32 + 8}>
       <BarChart data={data} layout="vertical" margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
         <XAxis type="number" hide />
         <YAxis
           type="category"
           dataKey="genre"
-          width={72}
-          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+          width={80}
+          tick={<ThemedTick />}
           axisLine={false}
           tickLine={false}
         />
         <Tooltip
           contentStyle={{
-            background: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
+            backgroundColor: "var(--card)",
+            border: "1px solid var(--border)",
             borderRadius: 8,
             fontSize: 12,
+            color: "var(--card-foreground)",
           }}
-          cursor={{ fill: "hsl(var(--accent) / 0.3)" }}
+          cursor={{ fill: "var(--accent)", opacity: 0.3 }}
         />
-        <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#3b82f6" barSize={16} name="数量" />
+        <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#3b82f6" barSize={18} name="数量" />
       </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-interface RatingBarProps {
-  data: { rating: number; count: number }[];
-}
-
-export function RatingBarChart({ data }: RatingBarProps) {
-  // Fill in all ratings 1-10
-  const full = Array.from({ length: 10 }, (_, i) => {
-    const r = i + 1;
-    const found = data.find((d) => d.rating === r);
-    return { rating: `${r}`, count: found?.count || 0 };
-  });
-
-  if (data.length === 0) return <p className="text-sm text-muted-foreground">暂无评分</p>;
-
-  return (
-    <ResponsiveContainer width="100%" height={160}>
-      <BarChart data={full} margin={{ left: -20, right: 4, top: 4, bottom: 0 }}>
-        <XAxis
-          dataKey="rating"
-          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          allowDecimals={false}
-          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <Tooltip
-          contentStyle={{
-            background: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: 8,
-            fontSize: 12,
-          }}
-          cursor={{ fill: "hsl(var(--accent) / 0.3)" }}
-        />
-        <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="#eab308" barSize={20} name="数量" />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-interface MonthlyAreaProps {
-  data: { month: string; count: number }[];
-}
-
-export function MonthlyAreaChart({ data }: MonthlyAreaProps) {
-  if (data.length === 0) return <p className="text-sm text-muted-foreground">暂无数据</p>;
-
-  const display = data.map((d) => ({
-    ...d,
-    label: d.month.slice(5), // "MM" from "YYYY-MM"
-  }));
-
-  return (
-    <ResponsiveContainer width="100%" height={160}>
-      <AreaChart data={display} margin={{ left: -20, right: 4, top: 4, bottom: 0 }}>
-        <defs>
-          <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-        <XAxis
-          dataKey="label"
-          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          allowDecimals={false}
-          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <Tooltip
-          contentStyle={{
-            background: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: 8,
-            fontSize: 12,
-          }}
-          labelFormatter={(l) => `${l}月`}
-        />
-        <Area
-          type="monotone"
-          dataKey="count"
-          stroke="#3b82f6"
-          fill="url(#colorCount)"
-          strokeWidth={2}
-          name="新增"
-        />
-      </AreaChart>
     </ResponsiveContainer>
   );
 }

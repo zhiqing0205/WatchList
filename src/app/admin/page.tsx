@@ -1,15 +1,15 @@
 export const dynamic = "force-dynamic";
 
+import Image from "next/image";
 import { getDashboardStats } from "@/app/admin/_actions/media";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tv, Film, Eye, CheckCircle, History } from "lucide-react";
+import { Tv, Film, Eye, CheckCircle, History, Layers } from "lucide-react";
 import { formatShortDateCST } from "@/lib/utils";
+import { getImageUrl } from "@/lib/tmdb";
 import Link from "next/link";
 import {
   StatusPieChart,
   GenreBarChart,
-  RatingBarChart,
-  MonthlyAreaChart,
 } from "./_components/dashboard-charts";
 
 const statusLabels: Record<string, string> = {
@@ -26,6 +26,14 @@ const actionLabels: Record<string, string> = {
   status_changed: "状态变更",
   rating_changed: "评分变更",
   added: "新增影视",
+};
+
+const actionIcons: Record<string, { icon: typeof Tv; color: string }> = {
+  episode_watched: { icon: Tv, color: "text-blue-500" },
+  movie_watched: { icon: Film, color: "text-green-500" },
+  status_changed: { icon: Eye, color: "text-yellow-500" },
+  rating_changed: { icon: CheckCircle, color: "text-purple-500" },
+  added: { icon: Film, color: "text-primary" },
 };
 
 function formatHistoryDetail(action: string, detail: string | null): string {
@@ -58,11 +66,51 @@ export default async function AdminDashboard() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">仪表盘</h1>
 
-      {/* Row 1: Status pie + Rating distribution */}
+      {/* Top stat cards */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">总数</CardTitle>
+            <Layers className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">剧集</CardTitle>
+            <Tv className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.byType.tv || 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">电影</CardTitle>
+            <Film className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.byType.movie || 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">在看</CardTitle>
+            <Eye className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.byStatus.watching || 0}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts: Status pie + Genre bar */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">影视概览</CardTitle>
+            <CardTitle className="text-sm font-medium">状态分布</CardTitle>
           </CardHeader>
           <CardContent>
             <StatusPieChart
@@ -76,36 +124,15 @@ export default async function AdminDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">我的评分分布</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RatingBarChart data={stats.ratingDistribution} />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Row 2: Genre bar + Monthly trend */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">类型 TOP 10</CardTitle>
           </CardHeader>
           <CardContent>
             <GenreBarChart data={stats.genreDistribution} />
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">近 12 个月新增</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <MonthlyAreaChart data={stats.monthlyAdds} />
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Row 3: Recent activity */}
+      {/* Recent activity with posters */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-medium">
@@ -114,50 +141,63 @@ export default async function AdminDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-1">
+          <div className="space-y-2">
             {stats.recentHistory.map((row) => {
               const detail = formatHistoryDetail(
                 row.history.action,
                 row.history.detail
               );
+              const iconCfg = actionIcons[row.history.action];
+              const Icon = iconCfg?.icon || Film;
+              const iconColor = iconCfg?.color || "text-muted-foreground";
+
               return (
                 <Link
                   key={row.history.id}
                   href={`/admin/library/${row.history.mediaItemId}`}
-                  className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-accent transition-colors"
+                  className="flex items-center gap-3 rounded-lg border p-3 hover:bg-accent/50 transition-colors"
                 >
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted flex-shrink-0">
-                    {row.history.action === "episode_watched" && (
-                      <Tv className="h-3.5 w-3.5 text-blue-500" />
-                    )}
-                    {row.history.action === "movie_watched" && (
-                      <Film className="h-3.5 w-3.5 text-green-500" />
-                    )}
-                    {row.history.action === "status_changed" && (
-                      <Eye className="h-3.5 w-3.5 text-yellow-500" />
-                    )}
-                    {row.history.action === "rating_changed" && (
-                      <CheckCircle className="h-3.5 w-3.5 text-purple-500" />
-                    )}
-                    {row.history.action === "added" && (
-                      <Film className="h-3.5 w-3.5 text-primary" />
+                  {/* Poster thumbnail */}
+                  <div className="relative h-14 w-10 flex-shrink-0 overflow-hidden rounded">
+                    {row.posterPath ? (
+                      <Image
+                        src={getImageUrl(row.posterPath, "w92")}
+                        alt={row.title}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-muted">
+                        <Film className="h-4 w-4 text-muted-foreground" />
+                      </div>
                     )}
                   </div>
+
+                  {/* Icon */}
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted flex-shrink-0">
+                    <Icon className={`h-4 w-4 ${iconColor}`} />
+                  </div>
+
+                  {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <span className="truncate text-sm font-medium">{row.title}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">
+                    <p className="truncate text-sm font-medium">{row.title}</p>
+                    <p className="text-xs text-muted-foreground">
                       {actionLabels[row.history.action] || row.history.action}
-                      {detail && ` · ${detail}`}
-                    </span>
+                      {detail && (
+                        <span className="ml-1 font-medium text-foreground/70">{detail}</span>
+                      )}
+                    </p>
                   </div>
-                  <span className="text-[11px] text-muted-foreground flex-shrink-0">
+
+                  {/* Time */}
+                  <span className="text-[11px] text-muted-foreground flex-shrink-0 whitespace-nowrap">
                     {formatShortDateCST(row.history.createdAt)}
                   </span>
                 </Link>
               );
             })}
             {stats.recentHistory.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">暂无记录</p>
+              <p className="py-6 text-center text-sm text-muted-foreground">暂无记录</p>
             )}
           </div>
         </CardContent>
