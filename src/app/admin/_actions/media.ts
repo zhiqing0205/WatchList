@@ -757,12 +757,55 @@ export async function getDashboardStats() {
     .from(mediaItems)
     .groupBy(mediaItems.mediaType);
 
-  const recentHistory = await getProgressHistoryList(15);
+  // Rating distribution
+  const ratingCounts = await db
+    .select({
+      rating: mediaItems.rating,
+      count: sql<number>`count(*)`,
+    })
+    .from(mediaItems)
+    .where(sql`${mediaItems.rating} IS NOT NULL`)
+    .groupBy(mediaItems.rating);
+
+  // Genre distribution — genres is JSON array stored as string
+  const allGenres = await db
+    .select({ genres: mediaItems.genres })
+    .from(mediaItems)
+    .where(sql`${mediaItems.genres} IS NOT NULL`);
+
+  const genreMap: Record<string, number> = {};
+  for (const row of allGenres) {
+    try {
+      const genres: string[] = JSON.parse(row.genres!);
+      for (const g of genres) {
+        genreMap[g] = (genreMap[g] || 0) + 1;
+      }
+    } catch { /* skip */ }
+  }
+
+  // Monthly additions (last 12 months)
+  const monthlyAdds = await db
+    .select({
+      month: sql<string>`strftime('%Y-%m', ${mediaItems.createdAt})`,
+      count: sql<number>`count(*)`,
+    })
+    .from(mediaItems)
+    .where(sql`${mediaItems.createdAt} >= datetime('now', '-12 months')`)
+    .groupBy(sql`strftime('%Y-%m', ${mediaItems.createdAt})`)
+    .orderBy(sql`strftime('%Y-%m', ${mediaItems.createdAt})`);
+
+  const recentHistory = await getProgressHistoryList(10);
 
   return {
     total: totalCount.count,
     byStatus: Object.fromEntries(statusCounts.map((s) => [s.status, s.count])),
     byType: Object.fromEntries(typeCounts.map((t) => [t.mediaType, t.count])),
+    ratingDistribution: ratingCounts.map((r) => ({ rating: r.rating!, count: r.count })),
+    genreDistribution: Object.entries(genreMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([genre, count]) => ({ genre, count })),
+    monthlyAdds: monthlyAdds.map((m) => ({ month: m.month, count: m.count })),
     recentHistory,
   };
 }

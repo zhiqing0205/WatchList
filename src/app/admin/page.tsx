@@ -2,17 +2,15 @@ export const dynamic = "force-dynamic";
 
 import { getDashboardStats } from "@/app/admin/_actions/media";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Film, Tv, Eye, CheckCircle, Clock, Pause, XCircle, History } from "lucide-react";
+import { Tv, Film, Eye, CheckCircle, History } from "lucide-react";
 import { formatShortDateCST } from "@/lib/utils";
 import Link from "next/link";
-
-const statusIcons: Record<string, React.ReactNode> = {
-  watching: <Eye className="h-4 w-4 text-blue-500" />,
-  completed: <CheckCircle className="h-4 w-4 text-green-500" />,
-  planned: <Clock className="h-4 w-4 text-yellow-500" />,
-  on_hold: <Pause className="h-4 w-4 text-gray-500" />,
-  dropped: <XCircle className="h-4 w-4 text-red-500" />,
-};
+import {
+  StatusPieChart,
+  GenreBarChart,
+  RatingBarChart,
+  MonthlyAreaChart,
+} from "./_components/dashboard-charts";
 
 const statusLabels: Record<string, string> = {
   watching: "在看",
@@ -60,73 +58,63 @@ export default async function AdminDashboard() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">仪表盘</h1>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Row 1: Status pie + Rating distribution */}
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">总数</CardTitle>
-            <Film className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">影视概览</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <StatusPieChart
+              byStatus={stats.byStatus}
+              total={stats.total}
+              tvCount={stats.byType.tv || 0}
+              movieCount={stats.byType.movie || 0}
+            />
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">剧集</CardTitle>
-            <Tv className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">我的评分分布</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.byType.tv || 0}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">电影</CardTitle>
-            <Film className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.byType.movie || 0}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">在看</CardTitle>
-            <Eye className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.byStatus.watching || 0}</div>
+            <RatingBarChart data={stats.ratingDistribution} />
           </CardContent>
         </Card>
       </div>
 
-      {/* Status breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">状态分布</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            {Object.entries(statusLabels).map(([status, label]) => (
-              <div key={status} className="flex items-center gap-2">
-                {statusIcons[status]}
-                <span className="text-sm">{label}</span>
-                <span className="text-sm font-bold">{stats.byStatus[status] || 0}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Row 2: Genre bar + Monthly trend */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">类型 TOP 10</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GenreBarChart data={stats.genreDistribution} />
+          </CardContent>
+        </Card>
 
-      {/* Recent history timeline */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">近 12 个月新增</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <MonthlyAreaChart data={stats.monthlyAdds} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 3: Recent activity */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium">
             <History className="h-4 w-4" />
-            追剧记录
+            最近动态
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
+          <div className="space-y-1">
             {stats.recentHistory.map((row) => {
               const detail = formatHistoryDetail(
                 row.history.action,
@@ -136,40 +124,40 @@ export default async function AdminDashboard() {
                 <Link
                   key={row.history.id}
                   href={`/admin/library/${row.history.mediaItemId}`}
-                  className="flex items-center gap-3 rounded-md p-2 hover:bg-accent transition-colors"
+                  className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-accent transition-colors"
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted flex-shrink-0">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted flex-shrink-0">
                     {row.history.action === "episode_watched" && (
-                      <Tv className="h-4 w-4 text-blue-500" />
+                      <Tv className="h-3.5 w-3.5 text-blue-500" />
                     )}
                     {row.history.action === "movie_watched" && (
-                      <Film className="h-4 w-4 text-green-500" />
+                      <Film className="h-3.5 w-3.5 text-green-500" />
                     )}
                     {row.history.action === "status_changed" && (
-                      <Eye className="h-4 w-4 text-yellow-500" />
+                      <Eye className="h-3.5 w-3.5 text-yellow-500" />
                     )}
                     {row.history.action === "rating_changed" && (
-                      <CheckCircle className="h-4 w-4 text-purple-500" />
+                      <CheckCircle className="h-3.5 w-3.5 text-purple-500" />
                     )}
                     {row.history.action === "added" && (
-                      <Film className="h-4 w-4 text-primary" />
+                      <Film className="h-3.5 w-3.5 text-primary" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium">{row.title}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <span className="truncate text-sm font-medium">{row.title}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">
                       {actionLabels[row.history.action] || row.history.action}
                       {detail && ` · ${detail}`}
-                    </p>
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground flex-shrink-0">
+                  <span className="text-[11px] text-muted-foreground flex-shrink-0">
                     {formatShortDateCST(row.history.createdAt)}
                   </span>
                 </Link>
               );
             })}
             {stats.recentHistory.length === 0 && (
-              <p className="text-sm text-muted-foreground">暂无记录，去搜索添加吧</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">暂无记录</p>
             )}
           </div>
         </CardContent>
