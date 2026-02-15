@@ -116,7 +116,6 @@ export function LibraryList({
   const [pending, startTransition] = useTransition();
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [globalLoading, setGlobalLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const hasMore = items.length < total;
@@ -260,11 +259,11 @@ export function LibraryList({
               size="sm"
               variant="outline"
               className="gap-1.5"
-              disabled={refreshing}
+              disabled={globalLoading}
               onClick={async () => {
-                setRefreshing(true);
+                setGlobalLoading(true);
                 try {
-                  const result = await refreshAllMetadata();
+                  const result = await refreshAllMetadata({ manual: true });
                   toast.success(
                     `更新完成：成功 ${result.success}，失败 ${result.failed}`
                   );
@@ -272,16 +271,12 @@ export function LibraryList({
                 } catch {
                   toast.error("更新失败");
                 } finally {
-                  setRefreshing(false);
+                  setGlobalLoading(false);
                 }
               }}
             >
-              {refreshing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-              {refreshing ? "更新中..." : "一键更新全部元数据"}
+              <RefreshCw className="h-3.5 w-3.5" />
+              一键更新全部元数据
             </Button>
           </div>
         )}

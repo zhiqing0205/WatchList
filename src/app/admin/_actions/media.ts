@@ -918,8 +918,8 @@ export async function getSystemLogs(page = 1, limit = 50) {
   };
 }
 
-// Refresh all media metadata (used by cron)
-export async function refreshAllMetadata() {
+// Refresh all media metadata (used by cron and manual trigger)
+export async function refreshAllMetadata(options?: { manual?: boolean }) {
   await ensureMigrated();
   const allItems = await db
     .select({ id: mediaItems.id, title: mediaItems.title })
@@ -939,10 +939,11 @@ export async function refreshAllMetadata() {
     }
   }
 
+  const isManual = options?.manual;
   await writeSystemLog(
     failed > 0 ? "warn" : "info",
-    "cron_metadata_refresh",
-    `定时刷新元数据完成: 成功 ${success}, 失败 ${failed}, 共 ${allItems.length}`,
+    isManual ? "manual_metadata_refresh" : "cron_metadata_refresh",
+    `${isManual ? "手动" : "定时"}刷新元数据完成: 成功 ${success}, 失败 ${failed}, 共 ${allItems.length}`,
     { success, failed, total: allItems.length, errors: errors.slice(0, 10) }
   );
 

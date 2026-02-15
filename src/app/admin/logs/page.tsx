@@ -28,7 +28,8 @@ const actionConfig: Record<string, { label: string; icon: typeof Plus }> = {
   batch_completed: { label: "批量完成", icon: CheckCircle2 },
   progress_updated: { label: "进度更新", icon: Play },
   metadata_refetched: { label: "更新元数据", icon: RefreshCw },
-  cron_metadata_refresh: { label: "定时任务", icon: Timer },
+  cron_metadata_refresh: { label: "定时更新", icon: Timer },
+  manual_metadata_refresh: { label: "手动更新", icon: RefreshCw },
 };
 
 interface Props {
