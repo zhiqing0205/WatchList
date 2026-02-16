@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Loader2,
@@ -20,6 +20,24 @@ import {
   markTvCompleted,
   updateMediaItem,
 } from "@/app/admin/_actions/media";
+
+// Brief flash animation hook — returns [flash, triggerFlash]
+function useFlash(duration = 400): [boolean, () => void] {
+  const [flash, setFlash] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const trigger = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setFlash(true);
+    timerRef.current = setTimeout(() => setFlash(false), duration);
+  }, [duration]);
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  return [flash, trigger];
+}
 
 interface TvProgressData {
   currentSeason: number | null;
@@ -131,6 +149,7 @@ export function TvProgressControl({
   const [loading, setLoading] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [viewingSeason, setViewingSeason] = useState<number | null>(null);
+  const [flash, triggerFlash] = useFlash();
 
   // Optimistic local state
   const [localProgress, setLocalProgress] = useState(progress);
@@ -168,6 +187,7 @@ export function TvProgressControl({
     const next = computeNextEpisode(localProgress);
     setLocalProgress({ ...localProgress, ...next });
     if (localStatus === "planned") setLocalStatus("watching");
+    triggerFlash();
 
     try {
       await advanceEpisode(mediaItemId);
@@ -186,6 +206,7 @@ export function TvProgressControl({
     if (localStatus === "planned" && episode > 0) setLocalStatus("watching");
     setShowPicker(false);
     setViewingSeason(null);
+    triggerFlash();
 
     try {
       await updateTvProgress(mediaItemId, { currentSeason: season, currentEpisode: episode });
@@ -202,6 +223,7 @@ export function TvProgressControl({
     const last = getLastEpisode(localProgress);
     setLocalProgress({ ...localProgress, ...last });
     setLocalStatus("completed");
+    triggerFlash();
 
     try {
       await markTvCompleted(mediaItemId);
@@ -274,7 +296,11 @@ export function TvProgressControl({
             setShowPicker(!showPicker);
             setViewingSeason(null);
           }}
-          className="flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-mono transition-colors hover:bg-accent"
+          className={`flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-mono transition-all duration-300 hover:bg-accent ${
+            flash
+              ? "scale-110 bg-primary/15 ring-2 ring-primary/30"
+              : "bg-muted scale-100"
+          }`}
           title="点击选择进度"
         >
           <span>
@@ -412,6 +438,7 @@ export function MovieProgressControl({
 }) {
   const router = useRouter();
   const [optimisticWatched, setOptimisticWatched] = useState(progress?.watched || false);
+  const [flash, triggerFlash] = useFlash();
 
   useEffect(() => {
     setOptimisticWatched(progress?.watched || false);
@@ -420,6 +447,7 @@ export function MovieProgressControl({
   const handleToggle = async () => {
     const newWatched = !optimisticWatched;
     setOptimisticWatched(newWatched); // Instant UI update
+    triggerFlash();
 
     try {
       await updateMovieProgress(mediaItemId, newWatched);
@@ -434,7 +462,9 @@ export function MovieProgressControl({
     <Button
       variant={optimisticWatched ? "default" : "outline"}
       size="sm"
-      className="h-7 gap-1 text-xs"
+      className={`h-7 gap-1 text-xs transition-all duration-300 ${
+        flash ? "scale-110 ring-2 ring-primary/30" : "scale-100"
+      }`}
       onClick={handleToggle}
     >
       {optimisticWatched ? (
@@ -467,6 +497,7 @@ export function StatusControl({
   const [optimisticStatus, setOptimisticStatus] = useState(status);
   const [showOptions, setShowOptions] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [flash, triggerFlash] = useFlash();
 
   useEffect(() => {
     setOptimisticStatus(status);
@@ -494,6 +525,7 @@ export function StatusControl({
     const oldStatus = optimisticStatus;
     setOptimisticStatus(newStatus); // Instant UI update
     setShowOptions(false);
+    triggerFlash();
 
     try {
       await updateMediaItem(mediaItemId, { status: newStatus });
@@ -508,7 +540,9 @@ export function StatusControl({
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setShowOptions(!showOptions)}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${current.bg}`}
+        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-all duration-300 ${current.bg} ${
+          flash ? "scale-110 ring-2 ring-primary/30" : "scale-100"
+        }`}
       >
         <span className={`h-1.5 w-1.5 rounded-full ${current.dot}`} />
         {current.label}
