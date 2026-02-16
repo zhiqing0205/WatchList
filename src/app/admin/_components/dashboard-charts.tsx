@@ -1,17 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 
 const STATUS_COLORS: Record<string, string> = {
   watching: "#3b82f6",
@@ -37,52 +26,66 @@ interface StatusPieProps {
 }
 
 export function StatusPieChart({ byStatus, total, tvCount, movieCount }: StatusPieProps) {
-  const data = Object.entries(byStatus).map(([status, count]) => ({
-    name: STATUS_LABELS[status] || status,
-    value: count,
-    color: STATUS_COLORS[status] || "#94a3b8",
-  }));
+  const data = Object.entries(byStatus)
+    .map(([status, count]) => ({
+      key: status,
+      label: STATUS_LABELS[status] || status,
+      value: count,
+      color: STATUS_COLORS[status] || "#94a3b8",
+    }))
+    .filter((d) => d.value > 0);
+
+  // Build conic-gradient segments
+  let accumulated = 0;
+  const segments = data.map((d) => {
+    const pct = total > 0 ? (d.value / total) * 100 : 0;
+    const start = accumulated;
+    accumulated += pct;
+    return { ...d, start, end: accumulated };
+  });
+
+  const gradient =
+    segments.length > 0
+      ? segments
+          .map((s) => `${s.color} ${s.start}% ${s.end}%`)
+          .join(", ")
+      : "#e5e7eb 0% 100%";
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-2">
-      <div className="relative h-36 w-36 flex-shrink-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius={38}
-              outerRadius={65}
-              dataKey="value"
-              strokeWidth={2}
-              stroke="hsl(var(--card))"
-            >
-              {data.map((entry, i) => (
-                <Cell key={i} fill={entry.color} />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold">{total}</span>
-          <span className="text-[10px] text-muted-foreground">总计</span>
+    <div className="flex items-center gap-4">
+      {/* Donut with center label */}
+      <div className="relative h-28 w-28 flex-shrink-0">
+        <div
+          className="h-full w-full rounded-full"
+          style={{
+            background: `conic-gradient(${gradient})`,
+            WebkitMask: "radial-gradient(farthest-side, transparent 60%, #000 61%)",
+            mask: "radial-gradient(farthest-side, transparent 60%, #000 61%)",
+          }}
+        />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-xl font-bold leading-none">{total}</div>
+            <div className="mt-0.5 text-[10px] text-muted-foreground">总计</div>
+          </div>
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
+
+      {/* Legend */}
+      <div className="flex flex-col gap-1.5 text-sm">
         {data.map((d) => (
-          <div key={d.name} className="flex items-center gap-1.5 text-sm">
+          <div key={d.key} className="flex items-center gap-2">
             <span
               className="h-2.5 w-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: d.color }}
             />
-            <span className="text-muted-foreground">{d.name}</span>
+            <span className="text-muted-foreground">{d.label}</span>
             <span className="font-semibold">{d.value}</span>
           </div>
         ))}
-      </div>
-      <div className="text-xs text-muted-foreground">
-        剧集 {tvCount} · 电影 {movieCount}
+        <div className="mt-1 border-t pt-1 text-xs text-muted-foreground">
+          剧集 {tvCount} · 电影 {movieCount}
+        </div>
       </div>
     </div>
   );
@@ -95,58 +98,47 @@ interface TagBarProps {
 export function TagBarChart({ data }: TagBarProps) {
   const router = useRouter();
 
-  if (data.length === 0) return <p className="py-4 text-center text-sm text-muted-foreground">暂无标签数据</p>;
+  if (data.length === 0) {
+    return (
+      <p className="py-4 text-center text-sm text-muted-foreground">
+        暂无标签数据
+      </p>
+    );
+  }
 
-  const chartHeight = data.length * 28 + 4;
+  const max = Math.max(...data.map((d) => d.count));
 
   return (
-    <ResponsiveContainer width="100%" height={chartHeight}>
-      <BarChart data={data} layout="vertical" margin={{ left: 4, right: 8, top: 0, bottom: 0 }}>
-        <XAxis type="number" hide />
-        <YAxis
-          type="category"
-          dataKey="name"
-          width={72}
-          axisLine={false}
-          tickLine={false}
-          tick={({ x, y, payload }) => (
-            <text
-              x={x}
-              y={y}
-              textAnchor="end"
-              dominantBaseline="central"
-              className="fill-muted-foreground"
-              style={{ fontSize: 12 }}
-            >
-              {payload.value}
-            </text>
-          )}
-        />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: "var(--card)",
-            border: "1px solid var(--border)",
-            borderRadius: 8,
-            fontSize: 12,
-            color: "var(--card-foreground)",
-          }}
-          cursor={{ fill: "var(--accent)", opacity: 0.3 }}
-        />
-        <Bar
-          dataKey="count"
-          radius={[0, 4, 4, 0]}
-          barSize={16}
-          name="数量"
-          className="cursor-pointer"
-          onClick={(_data: any, index: number) => {
-            router.push(`/admin/library?tag=${encodeURIComponent(data[index].name)}`);
-          }}
-        >
-          {data.map((entry, i) => (
-            <Cell key={i} fill={entry.color || "#6366f1"} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="flex flex-col gap-2">
+      {data.map((item) => {
+        const pct = max > 0 ? (item.count / max) * 100 : 0;
+        return (
+          <button
+            key={item.name}
+            onClick={() =>
+              router.push(`/admin/library?tag=${encodeURIComponent(item.name)}`)
+            }
+            className="group flex items-center gap-2 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-accent/50"
+          >
+            <span className="w-16 flex-shrink-0 truncate text-xs text-muted-foreground group-hover:text-foreground">
+              {item.name}
+            </span>
+            <div className="relative h-4 flex-1 overflow-hidden rounded-sm bg-muted">
+              <div
+                className="absolute inset-y-0 left-0 rounded-sm transition-all duration-300"
+                style={{
+                  width: `${pct}%`,
+                  backgroundColor: item.color || "#6366f1",
+                  minWidth: pct > 0 ? "4px" : "0",
+                }}
+              />
+            </div>
+            <span className="w-6 flex-shrink-0 text-right text-xs font-medium tabular-nums">
+              {item.count}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
