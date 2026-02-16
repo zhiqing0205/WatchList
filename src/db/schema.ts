@@ -101,6 +101,15 @@ export const systemLogs = sqliteTable("system_logs", {
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
 
+export const ratingHistory = sqliteTable("rating_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  mediaItemId: integer("media_item_id")
+    .references(() => mediaItems.id, { onDelete: "cascade" })
+    .notNull(),
+  voteAverage: real("vote_average").notNull(),
+  recordedAt: text("recorded_at").default(sql`(datetime('now'))`),
+});
+
 // Types
 export type MediaItem = typeof mediaItems.$inferSelect;
 export type NewMediaItem = typeof mediaItems.$inferInsert;
@@ -111,3 +120,4 @@ export type MediaTag = typeof mediaTags.$inferSelect;
 export type SiteConfig = typeof siteConfig.$inferSelect;
 export type ProgressHistory = typeof progressHistory.$inferSelect;
 export type SystemLog = typeof systemLogs.$inferSelect;
+export type RatingHistory = typeof ratingHistory.$inferSelect;
