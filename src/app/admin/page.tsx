@@ -134,14 +134,14 @@ export default async function AdminDashboard() {
 
       {/* Recent activity with posters */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-medium">
             <History className="h-4 w-4" />
             最近动态
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
+          <div className="divide-y">
             {stats.recentHistory.map((row) => {
               const detail = formatHistoryDetail(
                 row.history.action,
@@ -155,10 +155,10 @@ export default async function AdminDashboard() {
                 <Link
                   key={row.history.id}
                   href={`/admin/library/${row.history.mediaItemId}`}
-                  className="flex items-center gap-3 rounded-lg border p-3 hover:bg-accent/50 transition-colors"
+                  className="flex items-center gap-2.5 py-2.5 first:pt-0 last:pb-0 hover:bg-accent/30 -mx-2 px-2 rounded transition-colors"
                 >
                   {/* Poster thumbnail */}
-                  <div className="relative h-14 w-10 flex-shrink-0 overflow-hidden rounded">
+                  <div className="relative h-12 w-8 flex-shrink-0 overflow-hidden rounded">
                     {row.posterPath ? (
                       <Image
                         src={getImageUrl(row.posterPath, "w92")}
@@ -168,20 +168,16 @@ export default async function AdminDashboard() {
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center bg-muted">
-                        <Film className="h-4 w-4 text-muted-foreground" />
+                        <Film className="h-3 w-3 text-muted-foreground" />
                       </div>
                     )}
                   </div>
 
-                  {/* Icon */}
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted flex-shrink-0">
-                    <Icon className={`h-4 w-4 ${iconColor}`} />
-                  </div>
-
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium">{row.title}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="truncate text-sm font-medium leading-tight">{row.title}</p>
+                    <p className="text-xs text-muted-foreground leading-tight mt-0.5">
+                      <Icon className={`inline h-3 w-3 mr-0.5 align-text-bottom ${iconColor}`} />
                       {actionLabels[row.history.action] || row.history.action}
                       {detail && (
                         <span className="ml-1 font-medium text-foreground/70">{detail}</span>

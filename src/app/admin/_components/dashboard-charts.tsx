@@ -57,16 +57,16 @@ export function StatusPieChart({ byStatus, total, tvCount, movieCount }: StatusP
   }));
 
   return (
-    <div className="flex items-center gap-6">
-      <div className="relative h-40 w-40 flex-shrink-0">
+    <div className="flex h-full flex-col items-center justify-center gap-4">
+      <div className="relative h-44 w-44 flex-shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="50%"
-              innerRadius={42}
-              outerRadius={72}
+              innerRadius={48}
+              outerRadius={80}
               dataKey="value"
               strokeWidth={2}
               stroke="hsl(var(--card))"
@@ -82,9 +82,9 @@ export function StatusPieChart({ byStatus, total, tvCount, movieCount }: StatusP
           <span className="text-[10px] text-muted-foreground">总计</span>
         </div>
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
         {data.map((d) => (
-          <div key={d.name} className="flex items-center gap-2 text-sm">
+          <div key={d.name} className="flex items-center gap-1.5 text-sm">
             <span
               className="h-2.5 w-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: d.color }}
@@ -93,9 +93,9 @@ export function StatusPieChart({ byStatus, total, tvCount, movieCount }: StatusP
             <span className="font-semibold">{d.value}</span>
           </div>
         ))}
-        <div className="mt-1 border-t pt-2 text-xs text-muted-foreground">
-          剧集 {tvCount} · 电影 {movieCount}
-        </div>
+      </div>
+      <div className="text-xs text-muted-foreground">
+        剧集 {tvCount} · 电影 {movieCount}
       </div>
     </div>
   );
@@ -108,8 +108,10 @@ interface GenreBarProps {
 export function GenreBarChart({ data }: GenreBarProps) {
   if (data.length === 0) return <p className="text-sm text-muted-foreground">暂无数据</p>;
 
+  const chartHeight = Math.max(data.length * 32 + 8, 200);
+
   return (
-    <ResponsiveContainer width="100%" height={data.length * 32 + 8}>
+    <ResponsiveContainer width="100%" height={chartHeight}>
       <BarChart data={data} layout="vertical" margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
         <XAxis type="number" hide />
         <YAxis
