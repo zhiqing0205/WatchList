@@ -31,8 +31,8 @@ export function getDate(item: MediaCardItem): string {
 }
 
 const sortFieldDefs: { field: SortField; label: string }[] = [
+  { field: "date", label: "播出时间" },
   { field: "rating", label: "评分" },
-  { field: "date", label: "上映时间" },
   { field: "episodes", label: "集数" },
 ];
 
