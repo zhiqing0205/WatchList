@@ -1,5 +1,6 @@
 "use client";
 
+import { Star } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -22,13 +23,46 @@ function formatDate(dateStr: string | null) {
 
 export function RatingTrendChart({
   data,
+  currentRating,
   className,
 }: {
   data: RatingPoint[];
+  currentRating?: number | null;
   className?: string;
 }) {
-  if (data.length < 2) return null;
+  // No data at all — show current rating + hint
+  if (data.length === 0) {
+    return (
+      <div className={className}>
+        <div className="flex items-center gap-3 rounded-md bg-muted/50 px-3 py-2">
+          <Star className="h-4 w-4 text-yellow-500" />
+          <div className="text-sm">
+            <span className="font-medium">{currentRating != null ? currentRating.toFixed(1) : "-"}</span>
+            <span className="ml-2 text-xs text-muted-foreground">暂无历史数据，将在定时任务后开始记录</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
+  // Only 1 data point — show the single value
+  if (data.length === 1) {
+    return (
+      <div className={className}>
+        <div className="flex items-center gap-3 rounded-md bg-muted/50 px-3 py-2">
+          <Star className="h-4 w-4 text-yellow-500" />
+          <div className="text-sm">
+            <span className="font-medium">{data[0].voteAverage.toFixed(1)}</span>
+            <span className="ml-2 text-xs text-muted-foreground">
+              首次记录于 {formatDate(data[0].recordedAt)}，更多数据将在后续刷新中采集
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2+ data points — show line chart
   const chartData = data.map((d) => ({
     date: formatDate(d.recordedAt),
     score: d.voteAverage,

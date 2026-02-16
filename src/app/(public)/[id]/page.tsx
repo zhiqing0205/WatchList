@@ -190,12 +190,10 @@ export default async function MediaDetailPage({ params }: Props) {
                 </div>
 
                 {/* Rating trend chart */}
-                {ratingHistoryData.length >= 2 && (
-                  <div className="max-w-sm">
-                    <p className="mb-1 text-xs text-white/50">评分趋势</p>
-                    <RatingTrendChart data={ratingHistoryData} />
-                  </div>
-                )}
+                <div className="max-w-sm">
+                  <p className="mb-1 text-xs text-white/50">评分趋势</p>
+                  <RatingTrendChart data={ratingHistoryData} currentRating={item.voteAverage} />
+                </div>
 
                 {/* Progress */}
                 {tvProg && (
