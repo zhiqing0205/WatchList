@@ -1,7 +1,7 @@
 "use server";
 
 import { db, ensureMigrated } from "@/db";
-import { mediaItems, tvProgress, movieProgress, mediaTags, tags, progressHistory, systemLogs } from "@/db/schema";
+import { mediaItems, tvProgress, movieProgress, mediaTags, tags, progressHistory, systemLogs, ratingHistory } from "@/db/schema";
 import { eq, desc, asc, sql, and, like, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { TmdbMediaDetails } from "@/lib/tmdb";
@@ -962,6 +962,47 @@ export async function getSystemLogs(page = 1, limit = 50) {
 }
 
 // Refresh all media metadata (used by cron and manual trigger)
+const MAX_RATING_HISTORY = 30;
+
+async function recordRatingSnapshot(mediaItemId: number, voteAverage: number | null) {
+  if (voteAverage == null) return;
+
+  // Get the most recent record for this media item
+  const [latest] = await db
+    .select({ voteAverage: ratingHistory.voteAverage })
+    .from(ratingHistory)
+    .where(eq(ratingHistory.mediaItemId, mediaItemId))
+    .orderBy(desc(ratingHistory.recordedAt))
+    .limit(1);
+
+  // Skip if rating unchanged
+  if (latest && latest.voteAverage === voteAverage) return;
+
+  // Insert new snapshot
+  await db.insert(ratingHistory).values({ mediaItemId, voteAverage });
+
+  // Trim to MAX_RATING_HISTORY per media item
+  const count = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(ratingHistory)
+    .where(eq(ratingHistory.mediaItemId, mediaItemId));
+
+  if (count[0].count > MAX_RATING_HISTORY) {
+    const excess = count[0].count - MAX_RATING_HISTORY;
+    const oldest = await db
+      .select({ id: ratingHistory.id })
+      .from(ratingHistory)
+      .where(eq(ratingHistory.mediaItemId, mediaItemId))
+      .orderBy(asc(ratingHistory.recordedAt))
+      .limit(excess);
+    if (oldest.length > 0) {
+      await db.delete(ratingHistory).where(
+        inArray(ratingHistory.id, oldest.map((r) => r.id))
+      );
+    }
+  }
+}
+
 export async function refreshAllMetadata(options?: { manual?: boolean }) {
   await ensureMigrated();
   const allItems = await db
@@ -972,9 +1013,20 @@ export async function refreshAllMetadata(options?: { manual?: boolean }) {
   let failed = 0;
   const errors: string[] = [];
 
+  const isManual = options?.manual;
+
   for (const item of allItems) {
     try {
       await refetchMediaMetadata(item.id, { silent: true });
+      // Record rating snapshot during cron runs
+      if (!isManual) {
+        const [updated] = await db
+          .select({ voteAverage: mediaItems.voteAverage })
+          .from(mediaItems)
+          .where(eq(mediaItems.id, item.id))
+          .limit(1);
+        await recordRatingSnapshot(item.id, updated?.voteAverage ?? null);
+      }
       success++;
     } catch (e) {
       failed++;
@@ -982,7 +1034,6 @@ export async function refreshAllMetadata(options?: { manual?: boolean }) {
     }
   }
 
-  const isManual = options?.manual;
   await writeSystemLog(
     failed > 0 ? "warn" : "info",
     isManual ? "manual_metadata_refresh" : "cron_metadata_refresh",
@@ -991,4 +1042,17 @@ export async function refreshAllMetadata(options?: { manual?: boolean }) {
   );
 
   return { success, failed, total: allItems.length };
+}
+
+export async function getRatingHistory(mediaItemId: number) {
+  await ensureMigrated();
+  return db
+    .select({
+      id: ratingHistory.id,
+      voteAverage: ratingHistory.voteAverage,
+      recordedAt: ratingHistory.recordedAt,
+    })
+    .from(ratingHistory)
+    .where(eq(ratingHistory.mediaItemId, mediaItemId))
+    .orderBy(asc(ratingHistory.recordedAt));
 }
