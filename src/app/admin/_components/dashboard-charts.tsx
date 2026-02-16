@@ -52,40 +52,40 @@ export function StatusPieChart({ byStatus, total, tvCount, movieCount }: StatusP
       : "#e5e7eb 0% 100%";
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-col items-center gap-3">
       {/* Donut with center label */}
-      <div className="relative h-28 w-28 flex-shrink-0">
+      <div className="relative h-40 w-40">
         <div
           className="h-full w-full rounded-full"
           style={{
             background: `conic-gradient(${gradient})`,
-            WebkitMask: "radial-gradient(farthest-side, transparent 60%, #000 61%)",
-            mask: "radial-gradient(farthest-side, transparent 60%, #000 61%)",
+            WebkitMask: "radial-gradient(farthest-side, transparent 58%, #000 59%)",
+            mask: "radial-gradient(farthest-side, transparent 58%, #000 59%)",
           }}
         />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-xl font-bold leading-none">{total}</div>
+            <div className="text-2xl font-bold leading-none">{total}</div>
             <div className="mt-0.5 text-[10px] text-muted-foreground">总计</div>
           </div>
         </div>
       </div>
 
       {/* Legend */}
-      <div className="flex flex-col gap-1.5 text-sm">
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm">
         {data.map((d) => (
-          <div key={d.key} className="flex items-center gap-2">
+          <div key={d.key} className="flex items-center gap-1.5">
             <span
-              className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+              className="h-2 w-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: d.color }}
             />
             <span className="text-muted-foreground">{d.label}</span>
             <span className="font-semibold">{d.value}</span>
           </div>
         ))}
-        <div className="mt-1 border-t pt-1 text-xs text-muted-foreground">
-          剧集 {tvCount} · 电影 {movieCount}
-        </div>
+      </div>
+      <div className="text-xs text-muted-foreground">
+        剧集 {tvCount} · 电影 {movieCount}
       </div>
     </div>
   );
