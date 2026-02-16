@@ -29,7 +29,12 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 // Use Tailwind class on SVG text so it adapts to light/dark theme
-function ThemedTick({ x, y, payload, textAnchor }: any) {
+function ThemedTick({ x, y, payload, textAnchor, width }: any) {
+  const maxChars = Math.floor((width || 90) / 6.5);
+  let label = payload.value || "";
+  if (label.length > maxChars) {
+    label = label.slice(0, maxChars - 1) + "…";
+  }
   return (
     <text
       x={x}
@@ -37,7 +42,7 @@ function ThemedTick({ x, y, payload, textAnchor }: any) {
       textAnchor={textAnchor || "end"}
       className="fill-muted-foreground text-[11px]"
     >
-      {payload.value}
+      {label}
     </text>
   );
 }
@@ -57,16 +62,16 @@ export function StatusPieChart({ byStatus, total, tvCount, movieCount }: StatusP
   }));
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-4">
-      <div className="relative h-44 w-44 flex-shrink-0">
+    <div className="flex h-full flex-col items-center justify-center gap-2">
+      <div className="relative h-36 w-36 flex-shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="50%"
-              innerRadius={48}
-              outerRadius={80}
+              innerRadius={38}
+              outerRadius={65}
               dataKey="value"
               strokeWidth={2}
               stroke="hsl(var(--card))"
@@ -108,17 +113,17 @@ interface GenreBarProps {
 export function GenreBarChart({ data }: GenreBarProps) {
   if (data.length === 0) return <p className="text-sm text-muted-foreground">暂无数据</p>;
 
-  const chartHeight = Math.max(data.length * 32 + 8, 200);
+  const chartHeight = Math.max(data.length * 28 + 8, 160);
 
   return (
     <ResponsiveContainer width="100%" height={chartHeight}>
-      <BarChart data={data} layout="vertical" margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
+      <BarChart data={data} layout="vertical" margin={{ left: 0, right: 12, top: 2, bottom: 2 }}>
         <XAxis type="number" hide />
         <YAxis
           type="category"
           dataKey="genre"
-          width={80}
-          tick={<ThemedTick />}
+          width={100}
+          tick={<ThemedTick width={100} />}
           axisLine={false}
           tickLine={false}
         />
@@ -132,7 +137,7 @@ export function GenreBarChart({ data }: GenreBarProps) {
           }}
           cursor={{ fill: "var(--accent)", opacity: 0.3 }}
         />
-        <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#3b82f6" barSize={18} name="数量" />
+        <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#3b82f6" barSize={16} name="数量" />
       </BarChart>
     </ResponsiveContainer>
   );

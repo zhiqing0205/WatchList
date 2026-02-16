@@ -109,10 +109,10 @@ export default async function AdminDashboard() {
       {/* Charts: Status pie + Genre bar */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="px-4 pb-1 pt-3">
             <CardTitle className="text-sm font-medium">状态分布</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-3">
             <StatusPieChart
               byStatus={stats.byStatus}
               total={stats.total}
@@ -123,10 +123,10 @@ export default async function AdminDashboard() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="px-4 pb-1 pt-3">
             <CardTitle className="text-sm font-medium">类型 TOP 10</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-3">
             <GenreBarChart data={stats.genreDistribution} />
           </CardContent>
         </Card>
@@ -173,16 +173,23 @@ export default async function AdminDashboard() {
                     )}
                   </div>
 
-                  {/* Content */}
+                  {/* Content — title + type on first line, action + detail on second */}
                   <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium leading-tight">{row.title}</p>
-                    <p className="text-xs text-muted-foreground leading-tight mt-0.5">
-                      <Icon className={`inline h-3 w-3 mr-0.5 align-text-bottom ${iconColor}`} />
-                      {actionLabels[row.history.action] || row.history.action}
+                    <div className="flex items-center gap-1.5">
+                      <p className="truncate text-sm font-medium leading-tight">{row.title}</p>
+                      <span className="flex-shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        {row.mediaType === "tv" ? "剧集" : "电影"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <Icon className={`h-3 w-3 flex-shrink-0 ${iconColor}`} />
+                      <span className="text-xs text-muted-foreground">
+                        {actionLabels[row.history.action] || row.history.action}
+                      </span>
                       {detail && (
-                        <span className="ml-1 font-medium text-foreground/70">{detail}</span>
+                        <span className="text-xs font-medium text-foreground/70">{detail}</span>
                       )}
-                    </p>
+                    </div>
                   </div>
 
                   {/* Time */}
