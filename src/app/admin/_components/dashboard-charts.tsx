@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   PieChart,
   Pie,
@@ -111,9 +112,15 @@ interface GenreBarProps {
 }
 
 export function GenreBarChart({ data }: GenreBarProps) {
+  const router = useRouter();
+
   if (data.length === 0) return <p className="text-sm text-muted-foreground">暂无数据</p>;
 
   const chartHeight = Math.max(data.length * 28 + 8, 160);
+
+  const handleClick = (entry: { genre: string; count: number }) => {
+    router.push(`/admin/library?genre=${encodeURIComponent(entry.genre)}`);
+  };
 
   return (
     <ResponsiveContainer width="100%" height={chartHeight}>
@@ -137,7 +144,15 @@ export function GenreBarChart({ data }: GenreBarProps) {
           }}
           cursor={{ fill: "var(--accent)", opacity: 0.3 }}
         />
-        <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#3b82f6" barSize={16} name="数量" />
+        <Bar
+          dataKey="count"
+          radius={[0, 4, 4, 0]}
+          fill="#3b82f6"
+          barSize={16}
+          name="数量"
+          className="cursor-pointer"
+          onClick={(_data: any, index: number) => handleClick(data[index])}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -99,6 +99,7 @@ interface LibraryListProps {
   filterStatus?: string;
   filterType?: string;
   filterSearch?: string;
+  filterGenre?: string;
 }
 
 export function LibraryList({
@@ -107,6 +108,7 @@ export function LibraryList({
   filterStatus,
   filterType,
   filterSearch,
+  filterGenre,
 }: LibraryListProps) {
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
@@ -137,6 +139,7 @@ export function LibraryList({
         status: filterStatus,
         mediaType: filterType,
         search: filterSearch,
+        genre: filterGenre,
         limit: PAGE_SIZE,
       });
       setItems((prev) => [...prev, ...result.items]);
@@ -146,7 +149,7 @@ export function LibraryList({
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, page, filterStatus, filterType, filterSearch]);
+  }, [loadingMore, hasMore, page, filterStatus, filterType, filterSearch, filterGenre]);
 
   // IntersectionObserver for infinite scroll
   useEffect(() => {

@@ -144,6 +144,7 @@ export async function getMediaItemsWithProgress(options?: {
   status?: string;
   mediaType?: string;
   search?: string;
+  genre?: string;
   page?: number;
   limit?: number;
   visibleOnly?: boolean;
@@ -153,6 +154,7 @@ export async function getMediaItemsWithProgress(options?: {
     status,
     mediaType,
     search,
+    genre,
     page = 1,
     limit = 20,
     visibleOnly = false,
@@ -162,6 +164,7 @@ export async function getMediaItemsWithProgress(options?: {
   if (status) conditions.push(eq(mediaItems.status, status as "watching" | "completed" | "planned" | "dropped" | "on_hold"));
   if (mediaType) conditions.push(eq(mediaItems.mediaType, mediaType as "movie" | "tv"));
   if (search) conditions.push(like(mediaItems.title, `%${search}%`));
+  if (genre) conditions.push(like(mediaItems.genres, `%${genre}%`));
   if (visibleOnly) conditions.push(eq(mediaItems.isVisible, true));
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
