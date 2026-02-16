@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
-import { getMediaItemById, getAllTags } from "@/app/admin/_actions/media";
+import { getMediaItemById, getAllTags, getRatingHistory } from "@/app/admin/_actions/media";
 import { getMediaDetails } from "@/lib/tmdb";
 import { MediaEditForm } from "./_components/edit-form";
+import { RatingTrendChart } from "@/components/rating-trend-chart";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -29,9 +30,17 @@ export default async function EditMediaPage({ params }: Props) {
     // TMDB fetch may fail, cast is optional
   }
 
+  const ratingHistoryData = await getRatingHistory(item.id);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">编辑: {item.title}</h1>
+      {ratingHistoryData.length >= 2 && (
+        <div className="rounded-lg border bg-card p-4">
+          <p className="mb-2 text-sm font-medium text-muted-foreground">TMDB 评分趋势</p>
+          <RatingTrendChart data={ratingHistoryData} className="max-w-md" />
+        </div>
+      )}
       <MediaEditForm item={item} allTags={allTags} cast={cast} />
     </div>
   );

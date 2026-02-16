@@ -3,13 +3,14 @@ export const dynamic = "force-dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getMediaItemById } from "@/app/admin/_actions/media";
+import { getMediaItemById, getRatingHistory } from "@/app/admin/_actions/media";
 import { getImageUrl, getCountryName, getMediaDetails } from "@/lib/tmdb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Play, ArrowLeft, Star } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { CastSection } from "./_components/cast-section";
+import { RatingTrendChart } from "@/components/rating-trend-chart";
 import type { Metadata } from "next";
 import type { TmdbCastMember } from "@/lib/tmdb";
 
@@ -56,6 +57,8 @@ export default async function MediaDetailPage({ params }: Props) {
   } catch {
     // Silently fail - cast is optional
   }
+
+  const ratingHistoryData = await getRatingHistory(item.id);
 
   const genres: string[] = item.genres ? JSON.parse(item.genres) : [];
   const tvProg =
@@ -185,6 +188,14 @@ export default async function MediaDetailPage({ params }: Props) {
                     </div>
                   )}
                 </div>
+
+                {/* Rating trend chart */}
+                {ratingHistoryData.length >= 2 && (
+                  <div className="max-w-sm">
+                    <p className="mb-1 text-xs text-white/50">评分趋势</p>
+                    <RatingTrendChart data={ratingHistoryData} />
+                  </div>
+                )}
 
                 {/* Progress */}
                 {tvProg && (
