@@ -18,7 +18,7 @@ const statusLabels: Record<string, string> = {
 };
 
 interface Props {
-  searchParams: Promise<{ page?: string; status?: string; type?: string; search?: string; genre?: string }>;
+  searchParams: Promise<{ page?: string; status?: string; type?: string; search?: string; genre?: string; tag?: string }>;
 }
 
 export default async function LibraryPage({ searchParams }: Props) {
@@ -29,6 +29,7 @@ export default async function LibraryPage({ searchParams }: Props) {
     mediaType: params.type,
     search: params.search,
     genre: params.genre,
+    tag: params.tag,
     limit: 20,
   });
 
@@ -78,6 +79,16 @@ export default async function LibraryPage({ searchParams }: Props) {
             </Link>
           </>
         )}
+        {params.tag && (
+          <>
+            <span className="mx-2 border-l" />
+            <Link href="/admin/library">
+              <Badge variant="default" className="gap-1">
+                标签: {params.tag} ✕
+              </Badge>
+            </Link>
+          </>
+        )}
       </div>
 
       {/* Media list with infinite scroll */}
@@ -88,6 +99,7 @@ export default async function LibraryPage({ searchParams }: Props) {
         filterType={params.type}
         filterSearch={params.search}
         filterGenre={params.genre}
+        filterTag={params.tag}
       />
     </div>
   );

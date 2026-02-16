@@ -29,25 +29,6 @@ const STATUS_LABELS: Record<string, string> = {
   dropped: "弃剧",
 };
 
-// Use Tailwind class on SVG text so it adapts to light/dark theme
-function ThemedTick({ x, y, payload, textAnchor, width }: any) {
-  const maxChars = Math.floor((width || 90) / 6.5);
-  let label = payload.value || "";
-  if (label.length > maxChars) {
-    label = label.slice(0, maxChars - 1) + "…";
-  }
-  return (
-    <text
-      x={x}
-      y={y}
-      textAnchor={textAnchor || "end"}
-      className="fill-muted-foreground text-[11px]"
-    >
-      {label}
-    </text>
-  );
-}
-
 interface StatusPieProps {
   byStatus: Record<string, number>;
   total: number;
@@ -107,32 +88,39 @@ export function StatusPieChart({ byStatus, total, tvCount, movieCount }: StatusP
   );
 }
 
-interface GenreBarProps {
-  data: { genre: string; count: number }[];
+interface TagBarProps {
+  data: { name: string; color: string | null; count: number }[];
 }
 
-export function GenreBarChart({ data }: GenreBarProps) {
+export function TagBarChart({ data }: TagBarProps) {
   const router = useRouter();
 
-  if (data.length === 0) return <p className="text-sm text-muted-foreground">暂无数据</p>;
+  if (data.length === 0) return <p className="py-4 text-center text-sm text-muted-foreground">暂无标签数据</p>;
 
-  const chartHeight = Math.max(data.length * 28 + 8, 160);
-
-  const handleClick = (entry: { genre: string; count: number }) => {
-    router.push(`/admin/library?genre=${encodeURIComponent(entry.genre)}`);
-  };
+  const chartHeight = data.length * 28 + 4;
 
   return (
     <ResponsiveContainer width="100%" height={chartHeight}>
-      <BarChart data={data} layout="vertical" margin={{ left: 0, right: 12, top: 2, bottom: 2 }}>
+      <BarChart data={data} layout="vertical" margin={{ left: 4, right: 8, top: 0, bottom: 0 }}>
         <XAxis type="number" hide />
         <YAxis
           type="category"
-          dataKey="genre"
-          width={100}
-          tick={<ThemedTick width={100} />}
+          dataKey="name"
+          width={72}
           axisLine={false}
           tickLine={false}
+          tick={({ x, y, payload }) => (
+            <text
+              x={x}
+              y={y}
+              textAnchor="end"
+              dominantBaseline="central"
+              className="fill-muted-foreground"
+              style={{ fontSize: 12 }}
+            >
+              {payload.value}
+            </text>
+          )}
         />
         <Tooltip
           contentStyle={{
@@ -147,12 +135,17 @@ export function GenreBarChart({ data }: GenreBarProps) {
         <Bar
           dataKey="count"
           radius={[0, 4, 4, 0]}
-          fill="#3b82f6"
           barSize={16}
           name="数量"
           className="cursor-pointer"
-          onClick={(_data: any, index: number) => handleClick(data[index])}
-        />
+          onClick={(_data: any, index: number) => {
+            router.push(`/admin/library?tag=${encodeURIComponent(data[index].name)}`);
+          }}
+        >
+          {data.map((entry, i) => (
+            <Cell key={i} fill={entry.color || "#6366f1"} />
+          ))}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );

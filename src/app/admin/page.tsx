@@ -9,7 +9,7 @@ import { getImageUrl } from "@/lib/tmdb";
 import Link from "next/link";
 import {
   StatusPieChart,
-  GenreBarChart,
+  TagBarChart,
 } from "./_components/dashboard-charts";
 
 const statusLabels: Record<string, string> = {
@@ -106,13 +106,13 @@ export default async function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Charts: Status pie + Genre bar */}
+      {/* Charts: Status pie + Tag bar */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader className="px-4 pb-1 pt-3">
+          <CardHeader className="px-3 pb-0 pt-3">
             <CardTitle className="text-sm font-medium">状态分布</CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pb-3">
+          <CardContent className="px-3 pb-2">
             <StatusPieChart
               byStatus={stats.byStatus}
               total={stats.total}
@@ -123,11 +123,11 @@ export default async function AdminDashboard() {
         </Card>
 
         <Card>
-          <CardHeader className="px-4 pb-1 pt-3">
-            <CardTitle className="text-sm font-medium">类型 TOP 10</CardTitle>
+          <CardHeader className="px-3 pb-0 pt-3">
+            <CardTitle className="text-sm font-medium">标签分布</CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pb-3">
-            <GenreBarChart data={stats.genreDistribution} />
+          <CardContent className="px-3 pb-2">
+            <TagBarChart data={stats.tagDistribution} />
           </CardContent>
         </Card>
       </div>

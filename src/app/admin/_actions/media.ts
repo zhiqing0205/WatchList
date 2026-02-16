@@ -145,6 +145,7 @@ export async function getMediaItemsWithProgress(options?: {
   mediaType?: string;
   search?: string;
   genre?: string;
+  tag?: string;
   page?: number;
   limit?: number;
   visibleOnly?: boolean;
@@ -155,6 +156,7 @@ export async function getMediaItemsWithProgress(options?: {
     mediaType,
     search,
     genre,
+    tag,
     page = 1,
     limit = 20,
     visibleOnly = false,
@@ -165,6 +167,16 @@ export async function getMediaItemsWithProgress(options?: {
   if (mediaType) conditions.push(eq(mediaItems.mediaType, mediaType as "movie" | "tv"));
   if (search) conditions.push(like(mediaItems.title, `%${search}%`));
   if (genre) conditions.push(like(mediaItems.genres, `%${genre}%`));
+  if (tag) {
+    // Filter by tag name via subquery
+    conditions.push(
+      sql`${mediaItems.id} IN (
+        SELECT mt.media_item_id FROM media_tags mt
+        JOIN tags t ON t.id = mt.tag_id
+        WHERE t.name = ${tag}
+      )`
+    );
+  }
   if (visibleOnly) conditions.push(eq(mediaItems.isVisible, true));
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -770,21 +782,17 @@ export async function getDashboardStats() {
     .where(sql`${mediaItems.rating} IS NOT NULL`)
     .groupBy(mediaItems.rating);
 
-  // Genre distribution — genres is JSON array stored as string
-  const allGenres = await db
-    .select({ genres: mediaItems.genres })
-    .from(mediaItems)
-    .where(sql`${mediaItems.genres} IS NOT NULL`);
-
-  const genreMap: Record<string, number> = {};
-  for (const row of allGenres) {
-    try {
-      const genres: string[] = JSON.parse(row.genres!);
-      for (const g of genres) {
-        genreMap[g] = (genreMap[g] || 0) + 1;
-      }
-    } catch { /* skip */ }
-  }
+  // Tag distribution — count media items per user-managed tag
+  const tagCounts = await db
+    .select({
+      name: tags.name,
+      color: tags.color,
+      count: sql<number>`count(*)`,
+    })
+    .from(mediaTags)
+    .innerJoin(tags, eq(mediaTags.tagId, tags.id))
+    .groupBy(tags.id)
+    .orderBy(desc(sql`count(*)`));
 
   // Monthly additions (last 12 months)
   const monthlyAdds = await db
@@ -804,10 +812,7 @@ export async function getDashboardStats() {
     byStatus: Object.fromEntries(statusCounts.map((s) => [s.status, s.count])),
     byType: Object.fromEntries(typeCounts.map((t) => [t.mediaType, t.count])),
     ratingDistribution: ratingCounts.map((r) => ({ rating: r.rating!, count: r.count })),
-    genreDistribution: Object.entries(genreMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([genre, count]) => ({ genre, count })),
+    tagDistribution: tagCounts.map((t) => ({ name: t.name, color: t.color, count: t.count })),
     monthlyAdds: monthlyAdds.map((m) => ({ month: m.month, count: m.count })),
     recentHistory,
   };
