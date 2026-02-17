@@ -394,7 +394,7 @@ export function LibraryList({
 
             {/* Info */}
             <div className="flex-1 min-w-0">
-              {/* Row 1: type icon + title + rating */}
+              {/* Row 1: type icon + title + rating + status */}
               <div className="flex items-center gap-1.5">
                 {item.mediaType === "tv" ? (
                   <Tv className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
@@ -424,10 +424,10 @@ export function LibraryList({
                     我的: {item.rating}/10
                   </span>
                 )}
-              </div>
-              {/* Row 2: status + date + season info + visibility */}
-              <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <StatusControl mediaItemId={item.id} status={item.status} />
+              </div>
+              {/* Row 2: date + season info + visibility */}
+              <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span>
                   {item.releaseDate || ""}
                   {item.mediaType === "tv" && (() => {
