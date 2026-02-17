@@ -699,6 +699,23 @@ export async function deleteTag(id: number) {
   revalidateAll();
 }
 
+export async function getMediaItemsByTagId(tagId: number) {
+  await ensureMigrated();
+  const rows = await db
+    .select({
+      id: mediaItems.id,
+      title: mediaItems.title,
+      mediaType: mediaItems.mediaType,
+      posterPath: mediaItems.posterPath,
+      status: mediaItems.status,
+    })
+    .from(mediaTags)
+    .innerJoin(mediaItems, eq(mediaTags.mediaItemId, mediaItems.id))
+    .where(eq(mediaTags.tagId, tagId))
+    .orderBy(desc(mediaItems.updatedAt));
+  return rows;
+}
+
 // Site config
 export async function getSiteConfig() {
   await ensureMigrated();
