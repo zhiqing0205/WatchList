@@ -2,13 +2,12 @@ export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
 import Link from "next/link";
-import { getMediaItemsWithProgress, getAllRatingHistory } from "@/app/admin/_actions/media";
+import { getMediaItemsWithProgress } from "@/app/admin/_actions/media";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, Tags } from "lucide-react";
 import { LibraryList } from "./_components/library-list";
 import { LibrarySearch } from "./_components/library-search";
-import { RatingHistoryFeed } from "./_components/rating-history-feed";
 
 const statusLabels: Record<string, string> = {
   watching: "在看",
@@ -24,18 +23,15 @@ interface Props {
 
 export default async function LibraryPage({ searchParams }: Props) {
   const params = await searchParams;
-  const [{ items, total }, ratingHistoryData] = await Promise.all([
-    getMediaItemsWithProgress({
-      page: 1,
-      status: params.status,
-      mediaType: params.type,
-      search: params.search,
-      genre: params.genre,
-      tag: params.tag,
-      limit: 20,
-    }),
-    getAllRatingHistory({ page: 1, limit: 20 }),
-  ]);
+  const { items, total } = await getMediaItemsWithProgress({
+    page: 1,
+    status: params.status,
+    mediaType: params.type,
+    search: params.search,
+    genre: params.genre,
+    tag: params.tag,
+    limit: 20,
+  });
 
   return (
     <div className="space-y-6">
@@ -113,15 +109,6 @@ export default async function LibraryPage({ searchParams }: Props) {
         filterGenre={params.genre}
         filterTag={params.tag}
       />
-
-      {/* Rating history */}
-      <div className="space-y-3 border-t pt-6">
-        <h2 className="text-lg font-semibold">评分历史</h2>
-        <RatingHistoryFeed
-          initialItems={ratingHistoryData.items}
-          total={ratingHistoryData.total}
-        />
-      </div>
     </div>
   );
 }

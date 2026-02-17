@@ -12,6 +12,7 @@ import {
   Film,
   ScrollText,
   Tags,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/admin/search", label: "搜索添加", icon: Search },
   { href: "/admin/library", label: "影视管理", icon: Library },
   { href: "/admin/library/tags", label: "标签管理", icon: Tags, indent: true },
+  { href: "/admin/library/ratings", label: "评分历史", icon: History, indent: true },
   { href: "/admin/logs", label: "系统日志", icon: ScrollText },
   { href: "/admin/settings", label: "系统设置", icon: Settings },
 ];
@@ -47,7 +49,7 @@ export default function AdminLayout({
               item.href === "/admin"
                 ? pathname === "/admin"
                 : item.href === "/admin/library"
-                  ? pathname === "/admin/library" || (pathname.startsWith("/admin/library/") && !pathname.startsWith("/admin/library/tags"))
+                  ? pathname === "/admin/library" || (pathname.startsWith("/admin/library/") && !pathname.startsWith("/admin/library/tags") && !pathname.startsWith("/admin/library/ratings"))
                   : pathname.startsWith(item.href);
             return (
               <Link
