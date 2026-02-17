@@ -1034,6 +1034,9 @@ const MAX_RATING_HISTORY = 30;
 async function recordRatingSnapshot(mediaItemId: number, voteAverage: number | null) {
   if (voteAverage == null) return;
 
+  // Round to 1 decimal to avoid duplicate records from tiny TMDB fluctuations
+  const rounded = Math.round(voteAverage * 10) / 10;
+
   // Get the most recent record for this media item
   const [latest] = await db
     .select({ voteAverage: ratingHistory.voteAverage })
@@ -1042,11 +1045,11 @@ async function recordRatingSnapshot(mediaItemId: number, voteAverage: number | n
     .orderBy(desc(ratingHistory.recordedAt))
     .limit(1);
 
-  // Skip if rating unchanged
-  if (latest && latest.voteAverage === voteAverage) return;
+  // Skip if rating unchanged (compare rounded values)
+  if (latest && Math.round(latest.voteAverage * 10) / 10 === rounded) return;
 
-  // Insert new snapshot
-  await db.insert(ratingHistory).values({ mediaItemId, voteAverage });
+  // Insert new snapshot with rounded value
+  await db.insert(ratingHistory).values({ mediaItemId, voteAverage: rounded });
 
   // Trim to MAX_RATING_HISTORY per media item
   const count = await db
