@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getImageUrl } from "@/lib/tmdb";
-import { computeTvWatchedInfo } from "@/lib/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,6 +26,8 @@ import {
   Loader2,
   X,
   Star,
+  Tv,
+  Clapperboard,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -393,12 +394,14 @@ export function LibraryList({
 
             {/* Info */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              {/* Row 1: type icon + title + rating */}
+              <div className="flex items-center gap-1.5">
+                {item.mediaType === "tv" ? (
+                  <Tv className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                ) : (
+                  <Clapperboard className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                )}
                 <h3 className="truncate font-medium">{item.title}</h3>
-                <Badge variant="outline" className="text-xs flex-shrink-0">
-                  {item.mediaType === "tv" ? "剧集" : "电影"}
-                </Badge>
-                <StatusControl mediaItemId={item.id} status={item.status} />
                 {item.voteAverage != null && item.voteAverage > 0 && (
                   <button
                     onClick={() => {
@@ -409,7 +412,7 @@ export function LibraryList({
                       });
                       setRatingModalOpen(true);
                     }}
-                    className="flex flex-shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs transition-colors hover:bg-accent"
+                    className="flex flex-shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-xs transition-colors hover:bg-accent"
                     title="查看评分历史"
                   >
                     <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
@@ -422,7 +425,9 @@ export function LibraryList({
                   </span>
                 )}
               </div>
+              {/* Row 2: status + date + season info + visibility */}
               <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <StatusControl mediaItemId={item.id} status={item.status} />
                 <span>
                   {item.releaseDate || ""}
                   {item.mediaType === "tv" && (() => {
@@ -435,6 +440,7 @@ export function LibraryList({
                   {!item.isVisible ? " · 🔒 隐藏" : ""}
                 </span>
               </div>
+              {/* Row 3: tags */}
               {item.tags.length > 0 && (
                 <div className="mt-1 flex flex-wrap items-center gap-1">
                   {item.tags.map((tag) => (
@@ -452,17 +458,6 @@ export function LibraryList({
                   ))}
                 </div>
               )}
-              {item.mediaType === "tv" && item.tvProgress && (() => {
-                const info = computeTvWatchedInfo(item.tvProgress);
-                return (
-                  <div className="mt-1 h-0.5 w-24 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${info.progressPercent}%` }}
-                    />
-                  </div>
-                );
-              })()}
             </div>
 
             {/* Inline progress controls */}
