@@ -7,8 +7,9 @@ import { getMediaItemById, getRatingHistory } from "@/app/admin/_actions/media";
 import { getImageUrl, getCountryName, getMediaDetails } from "@/lib/tmdb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Play, ArrowLeft, Star } from "lucide-react";
+import { Play, ArrowLeft, Star, Check } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { computeTvWatchedInfo } from "@/lib/progress";
 import { CastSection } from "./_components/cast-section";
 import { RatingTrendChart } from "@/components/rating-trend-chart";
 import type { Metadata } from "next";
@@ -196,25 +197,47 @@ export default async function MediaDetailPage({ params }: Props) {
                 </div>
 
                 {/* Progress */}
-                {tvProg && (
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-2xl font-bold text-primary">
-                      S{String(tvProg.currentSeason).padStart(2, "0")}E
-                      {String(tvProg.currentEpisode).padStart(2, "0")}
-                    </span>
-                    {tvProg.totalSeasons && (
-                      <span className="text-sm text-white/50">
-                        / 共 {tvProg.totalSeasons} 季
-                      </span>
-                    )}
-                  </div>
-                )}
+                {tvProg && (() => {
+                  const info = computeTvWatchedInfo(tvProg);
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-2xl font-bold text-primary">
+                          S{String(tvProg.currentSeason).padStart(2, "0")}E
+                          {String(tvProg.currentEpisode).padStart(2, "0")}
+                        </span>
+                        <span className="text-sm text-white/50">
+                          / S{String(tvProg.currentSeason).padStart(2, "0")}E
+                          {String(info.currentSeasonTotalEpisodes).padStart(2, "0")}
+                        </span>
+                        <span className="text-sm font-medium text-white/70">
+                          {info.progressPercent}%
+                        </span>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="h-1.5 w-48 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{ width: `${info.progressPercent}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-white/50">
+                        已看 {info.watchedEps} / {info.totalEps} 集 · 共 {tvProg.totalSeasons || info.currentSeasonTotalEpisodes > 0 ? tvProg.totalSeasons : 1} 季
+                      </p>
+                    </div>
+                  );
+                })()}
                 {movieProg && (
-                  <p
-                    className={`text-lg font-medium ${movieProg.watched ? "text-green-400" : "text-white/50"}`}
-                  >
-                    {movieProg.watched ? "已观看" : "未观看"}
-                  </p>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${movieProg.watched ? "bg-green-400" : "bg-white/30"}`}
+                    />
+                    <span
+                      className={`text-sm font-medium ${movieProg.watched ? "text-green-400" : "text-white/50"}`}
+                    >
+                      {movieProg.watched ? "已观看" : "未观看"}
+                    </span>
+                  </div>
                 )}
 
                 {/* Synopsis */}

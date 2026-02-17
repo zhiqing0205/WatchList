@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { computeTvWatchedInfo } from "@/lib/progress";
 import {
   advanceEpisode,
   updateMovieProgress,
@@ -52,6 +53,7 @@ interface MovieProgressData {
 }
 
 function computeWatchedInfo(progress: TvProgressData) {
+  const info = computeTvWatchedInfo(progress);
   const seasonDetails: {
     season_number: number;
     episode_count: number;
@@ -60,32 +62,14 @@ function computeWatchedInfo(progress: TvProgressData) {
     .filter((s) => s.season_number > 0)
     .sort((a, b) => a.season_number - b.season_number);
 
-  const currentSeason = progress.currentSeason || 1;
-  const currentEpisode = progress.currentEpisode || 0;
-
-  let watchedEps = 0;
-  let totalEps = 0;
-  for (const s of seasons) {
-    totalEps += s.episode_count || 0;
-    if (s.season_number < currentSeason) {
-      watchedEps += s.episode_count || 0;
-    } else if (s.season_number === currentSeason) {
-      watchedEps += currentEpisode;
-    }
-  }
-
-  const isFullyWatched =
-    seasons.length > 0 &&
-    currentSeason === seasons[seasons.length - 1].season_number &&
-    currentEpisode >= seasons[seasons.length - 1].episode_count;
-
   return {
-    watchedEps,
-    totalEps,
+    watchedEps: info.watchedEps,
+    totalEps: info.totalEps,
+    progressPercent: info.progressPercent,
+    isFullyWatched: info.isFullyWatched,
     seasons,
-    currentSeason,
-    currentEpisode,
-    isFullyWatched,
+    currentSeason: progress.currentSeason || 1,
+    currentEpisode: progress.currentEpisode || 0,
   };
 }
 
@@ -269,9 +253,10 @@ export function TvProgressControl({
   if (isCompleted && isFullyWatched) {
     return (
       <div className="flex items-center gap-1.5">
-        <span className="flex items-center gap-1 rounded bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600">
+        <span className="relative flex items-center gap-1 overflow-hidden rounded bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600">
           <CheckCircle className="h-3 w-3" />
           已看完 {totalEps}集
+          <span className="absolute inset-x-0 bottom-0 h-0.5 bg-green-500" />
         </span>
         <Button
           variant="ghost"
@@ -296,7 +281,7 @@ export function TvProgressControl({
             setShowPicker(!showPicker);
             setViewingSeason(null);
           }}
-          className={`flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-mono transition-all duration-300 hover:bg-accent ${
+          className={`relative flex items-center gap-1.5 overflow-hidden rounded px-2 py-0.5 text-xs font-mono transition-all duration-300 hover:bg-accent ${
             flash
               ? "scale-110 bg-primary/15 ring-2 ring-primary/30"
               : "bg-muted scale-100"
@@ -304,9 +289,14 @@ export function TvProgressControl({
           title="点击选择进度"
         >
           <span>
-            S{currentSeason}E{currentEpisode}
+            S{String(currentSeason).padStart(2, "0")}E{String(currentEpisode).padStart(2, "0")}
           </span>
+          <span className="text-muted-foreground">{watchedEps}/{totalEps}</span>
           <span className="text-muted-foreground">{progressPercent}%</span>
+          <span
+            className="absolute inset-x-0 bottom-0 h-0.5 bg-primary transition-all"
+            style={{ width: `${progressPercent}%` }}
+          />
         </button>
 
         {/* Advance button */}

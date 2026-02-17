@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getImageUrl } from "@/lib/tmdb";
+import { computeTvWatchedInfo } from "@/lib/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -383,6 +384,17 @@ export function LibraryList({
                 {item.rating ? ` · 评分: ${item.rating}/10` : ""}
                 {!item.isVisible ? " · 🔒 隐藏" : ""}
               </p>
+              {item.mediaType === "tv" && item.tvProgress && (() => {
+                const info = computeTvWatchedInfo(item.tvProgress);
+                return (
+                  <div className="mt-1 h-0.5 w-24 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${info.progressPercent}%` }}
+                    />
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Inline progress controls */}

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { getImageUrl, getCountryName } from "@/lib/tmdb";
+import { computeTvWatchedInfo } from "@/lib/progress";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight, Star, Play } from "lucide-react";
 import type { MediaItem } from "@/db/schema";
@@ -55,31 +56,7 @@ function computeWatchPercent(item: MediaCardItem): number {
   }
 
   if (item.mediaType === "tv" && item.tvProgress) {
-    const seasonDetails: { season_number: number; episode_count: number }[] =
-      item.tvProgress.seasonDetails
-        ? JSON.parse(item.tvProgress.seasonDetails)
-        : [];
-
-    const seasons = seasonDetails.filter((s) => s.season_number > 0);
-    const totalEps = seasons.reduce(
-      (sum, s) => sum + (s.episode_count || 0),
-      0
-    );
-    if (totalEps === 0) return 0;
-
-    const currentSeason = item.tvProgress.currentSeason || 1;
-    const currentEpisode = item.tvProgress.currentEpisode || 0;
-
-    let watchedEps = 0;
-    for (const s of seasons) {
-      if (s.season_number < currentSeason) {
-        watchedEps += s.episode_count || 0;
-      } else if (s.season_number === currentSeason) {
-        watchedEps += currentEpisode;
-      }
-    }
-
-    return Math.min(100, Math.round((watchedEps / totalEps) * 100));
+    return computeTvWatchedInfo(item.tvProgress).progressPercent;
   }
 
   return 0;
