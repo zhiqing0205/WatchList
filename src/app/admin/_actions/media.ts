@@ -1123,3 +1123,34 @@ export async function getRatingHistory(mediaItemId: number) {
     .where(eq(ratingHistory.mediaItemId, mediaItemId))
     .orderBy(asc(ratingHistory.recordedAt));
 }
+
+export async function getAllRatingHistory(options?: { page?: number; limit?: number }) {
+  await ensureMigrated();
+  const { page = 1, limit = 20 } = options || {};
+
+  const [rows, countResult] = await Promise.all([
+    db
+      .select({
+        id: ratingHistory.id,
+        voteAverage: ratingHistory.voteAverage,
+        recordedAt: ratingHistory.recordedAt,
+        mediaItemId: ratingHistory.mediaItemId,
+        title: mediaItems.title,
+        posterPath: mediaItems.posterPath,
+        mediaType: mediaItems.mediaType,
+      })
+      .from(ratingHistory)
+      .innerJoin(mediaItems, eq(ratingHistory.mediaItemId, mediaItems.id))
+      .orderBy(desc(ratingHistory.recordedAt))
+      .limit(limit)
+      .offset((page - 1) * limit),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(ratingHistory),
+  ]);
+
+  return {
+    items: rows,
+    total: countResult[0].count,
+  };
+}
