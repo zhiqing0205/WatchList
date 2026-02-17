@@ -422,7 +422,7 @@ export function LibraryList({
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span>
                   {item.releaseDate || ""}
                   {item.mediaType === "tv" && (() => {
@@ -434,25 +434,24 @@ export function LibraryList({
                   })()}
                   {!item.isVisible ? " · 🔒 隐藏" : ""}
                 </span>
-                {item.tags.length > 0 && (
-                  <>
-                    <span className="text-muted-foreground/40">·</span>
-                    {item.tags.map((tag) => (
-                      <Badge
-                        key={tag.id}
-                        variant="outline"
-                        className="h-4 px-1 py-0 text-[10px] leading-none"
-                        style={{
-                          borderColor: tag.color || undefined,
-                          color: tag.color || undefined,
-                        }}
-                      >
-                        {tag.name}
-                      </Badge>
-                    ))}
-                  </>
-                )}
               </div>
+              {item.tags.length > 0 && (
+                <div className="mt-1 flex flex-wrap items-center gap-1">
+                  {item.tags.map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant="outline"
+                      className="h-4 px-1 py-0 text-[10px] leading-none"
+                      style={{
+                        borderColor: tag.color || undefined,
+                        color: tag.color || undefined,
+                      }}
+                    >
+                      {tag.name}
+                    </Badge>
+                  ))}
+                </div>
+              )}
               {item.mediaType === "tv" && item.tvProgress && (() => {
                 const info = computeTvWatchedInfo(item.tvProgress);
                 return (
