@@ -11,6 +11,7 @@ import {
   LogOut,
   Film,
   ScrollText,
+  Tags,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/admin", label: "仪表盘", icon: LayoutDashboard },
   { href: "/admin/search", label: "搜索添加", icon: Search },
   { href: "/admin/library", label: "影视管理", icon: Library },
+  { href: "/admin/library/tags", label: "标签管理", icon: Tags, indent: true },
   { href: "/admin/logs", label: "系统日志", icon: ScrollText },
   { href: "/admin/settings", label: "系统设置", icon: Settings },
 ];
@@ -44,7 +46,9 @@ export default function AdminLayout({
             const isActive =
               item.href === "/admin"
                 ? pathname === "/admin"
-                : pathname.startsWith(item.href);
+                : item.href === "/admin/library"
+                  ? pathname === "/admin/library" || (pathname.startsWith("/admin/library/") && !pathname.startsWith("/admin/library/tags"))
+                  : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
@@ -53,10 +57,11 @@ export default function AdminLayout({
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                  item.indent && "ml-4 text-xs"
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className={cn("h-4 w-4", item.indent && "h-3.5 w-3.5")} />
                 {item.label}
               </Link>
             );

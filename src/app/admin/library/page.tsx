@@ -5,7 +5,7 @@ import Link from "next/link";
 import { getMediaItemsWithProgress } from "@/app/admin/_actions/media";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Tags } from "lucide-react";
 import { LibraryList } from "./_components/library-list";
 import { LibrarySearch } from "./_components/library-search";
 
@@ -37,12 +37,20 @@ export default async function LibraryPage({ searchParams }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">影视管理</h1>
-        <Button asChild>
-          <Link href="/admin/search">
-            <Plus className="mr-2 h-4 w-4" />
-            添加影视
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/admin/library/tags">
+              <Tags className="mr-2 h-4 w-4" />
+              标签管理
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/admin/search">
+              <Plus className="mr-2 h-4 w-4" />
+              添加影视
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Search bar */}
