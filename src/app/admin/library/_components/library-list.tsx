@@ -70,6 +70,7 @@ interface MediaItemWithProgress {
   isVisible: boolean | null;
   tvProgress: TvProgressData | null;
   movieProgress: MovieProgressData | null;
+  tags: { id: number; name: string; color: string | null }[];
 }
 
 type ConfirmAction = "complete" | "refetch" | "delete" | null;
@@ -421,17 +422,37 @@ export function LibraryList({
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {item.releaseDate || ""}
-                {item.mediaType === "tv" && (() => {
-                  const stats = getTvStats(item.tvProgress);
-                  if (stats && stats.totalEpisodes > 0) {
-                    return ` · 共 ${stats.totalSeasons}季${stats.totalEpisodes}集`;
-                  }
-                  return "";
-                })()}
-                {!item.isVisible ? " · 🔒 隐藏" : ""}
-              </p>
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <span>
+                  {item.releaseDate || ""}
+                  {item.mediaType === "tv" && (() => {
+                    const stats = getTvStats(item.tvProgress);
+                    if (stats && stats.totalEpisodes > 0) {
+                      return ` · 共${stats.totalSeasons}季${stats.totalEpisodes}集`;
+                    }
+                    return "";
+                  })()}
+                  {!item.isVisible ? " · 🔒 隐藏" : ""}
+                </span>
+                {item.tags.length > 0 && (
+                  <>
+                    <span className="text-muted-foreground/40">·</span>
+                    {item.tags.map((tag) => (
+                      <Badge
+                        key={tag.id}
+                        variant="outline"
+                        className="h-4 px-1 py-0 text-[10px] leading-none"
+                        style={{
+                          borderColor: tag.color || undefined,
+                          color: tag.color || undefined,
+                        }}
+                      >
+                        {tag.name}
+                      </Badge>
+                    ))}
+                  </>
+                )}
+              </div>
               {item.mediaType === "tv" && item.tvProgress && (() => {
                 const info = computeTvWatchedInfo(item.tvProgress);
                 return (

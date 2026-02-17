@@ -229,10 +229,31 @@ export async function getMediaItemsWithProgress(options?: {
     }
   }
 
+  // Fetch tags for all items
+  let tagsMap: Record<number, { id: number; name: string; color: string | null }[]> = {};
+  if (itemIds.length > 0) {
+    const tagRows = await db
+      .select({
+        mediaItemId: mediaTags.mediaItemId,
+        tagId: tags.id,
+        tagName: tags.name,
+        tagColor: tags.color,
+      })
+      .from(mediaTags)
+      .innerJoin(tags, eq(mediaTags.tagId, tags.id));
+    for (const row of tagRows) {
+      if (itemIds.includes(row.mediaItemId)) {
+        if (!tagsMap[row.mediaItemId]) tagsMap[row.mediaItemId] = [];
+        tagsMap[row.mediaItemId].push({ id: row.tagId, name: row.tagName, color: row.tagColor });
+      }
+    }
+  }
+
   const itemsWithProgress = items.map((item) => ({
     ...item,
     tvProgress: tvProgressMap[item.id] || null,
     movieProgress: movieProgressMap[item.id] || null,
+    tags: tagsMap[item.id] || [],
   }));
 
   return {
@@ -892,10 +913,31 @@ export async function getMediaItemsGroupedByStatus(options?: {
       }
     }
 
+    // Fetch tags
+    const allItemIds = items.map((i) => i.id);
+    let tagsMap: Record<number, { id: number; name: string; color: string | null }[]> = {};
+    if (allItemIds.length > 0) {
+      const tagRows = await db
+        .select({
+          mediaItemId: mediaTags.mediaItemId,
+          tagId: tags.id,
+          tagName: tags.name,
+          tagColor: tags.color,
+        })
+        .from(mediaTags)
+        .innerJoin(tags, eq(mediaTags.tagId, tags.id))
+        .where(inArray(mediaTags.mediaItemId, allItemIds));
+      for (const row of tagRows) {
+        if (!tagsMap[row.mediaItemId]) tagsMap[row.mediaItemId] = [];
+        tagsMap[row.mediaItemId].push({ id: row.tagId, name: row.tagName, color: row.tagColor });
+      }
+    }
+
     const itemsWithProgress = items.map((item) => ({
       ...item,
       tvProgress: tvProgressMap[item.id] || null,
       movieProgress: movieProgressMap[item.id] || null,
+      tags: tagsMap[item.id] || [],
     }));
 
     groups.push({
