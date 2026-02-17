@@ -25,6 +25,7 @@ interface Props {
     status?: string;
     type?: string;
     page?: string;
+    q?: string;
   }>;
 }
 
@@ -33,16 +34,18 @@ export default async function HomePage({ searchParams }: Props) {
   const page = Number(params.page) || 1;
   const status = params.status || undefined;
   const mediaType = params.type || undefined;
+  const search = params.q || undefined;
 
   const tags = await getAllTags();
 
   // If filters are applied, show flat paginated view
-  const isFiltered = !!status || !!mediaType || page > 1;
+  const isFiltered = !!status || !!mediaType || !!search || page > 1;
 
   if (isFiltered) {
     const { items, totalPages } = await getMediaItemsWithProgress({
       status,
       mediaType,
+      search,
       page,
       limit: 20,
       visibleOnly: true,
@@ -51,6 +54,7 @@ export default async function HomePage({ searchParams }: Props) {
     const urlParams = new URLSearchParams();
     if (status) urlParams.set("status", status);
     if (mediaType) urlParams.set("type", mediaType);
+    if (search) urlParams.set("q", search);
     const baseUrl = `/${urlParams.toString() ? `?${urlParams.toString()}` : ""}`;
 
     return (
@@ -58,6 +62,11 @@ export default async function HomePage({ searchParams }: Props) {
         <Suspense fallback={<Skeleton className="h-20 w-full" />}>
           <FilterBar tags={tags} />
         </Suspense>
+        {search && (
+          <p className="mt-4 text-sm text-muted-foreground">
+            搜索「{search}」找到 {items.length === 0 ? "0" : totalPages > 1 ? `${totalPages} 页` : `${items.length}`} 个结果
+          </p>
+        )}
         <div className="mt-6">
           <SortedMediaGrid items={items} />
         </div>

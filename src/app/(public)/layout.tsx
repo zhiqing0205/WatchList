@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Film, Settings } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { PublicSearch } from "@/components/public-search";
 
 export default function PublicLayout({
   children,
@@ -18,7 +19,7 @@ export default function PublicLayout({
             追剧清单
           </Link>
           <div className="flex items-center gap-4">
-            <nav className="flex items-center gap-4 text-sm">
+            <nav className="hidden items-center gap-4 text-sm sm:flex">
               <Link
                 href="/"
                 className="text-muted-foreground transition-colors hover:text-foreground"
@@ -38,6 +39,7 @@ export default function PublicLayout({
                 电影
               </Link>
             </nav>
+            <PublicSearch />
             <ThemeToggle />
             <Button variant="ghost" size="icon" asChild className="h-8 w-8">
               <Link href="/admin">
