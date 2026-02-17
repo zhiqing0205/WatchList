@@ -26,6 +26,7 @@ import {
   RefreshCw,
   Loader2,
   X,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -41,6 +42,7 @@ import {
   StatusControl,
 } from "./progress-controls";
 import { DeleteMediaButton } from "./delete-button";
+import { RatingHistoryModal } from "./rating-history-modal";
 
 interface TvProgressData {
   currentSeason: number | null;
@@ -94,6 +96,19 @@ const confirmConfig: Record<
 
 const PAGE_SIZE = 20;
 
+function getTvStats(tvProgress: TvProgressData | null) {
+  if (!tvProgress) return null;
+  const seasonDetails: { season_number: number; episode_count: number }[] =
+    tvProgress.seasonDetails ? JSON.parse(tvProgress.seasonDetails) : [];
+  const seasons = seasonDetails.filter((s) => s.season_number > 0);
+  const totalSeasons = seasons.length || tvProgress.totalSeasons || 0;
+  const totalEpisodes = seasons.reduce(
+    (sum, s) => sum + (s.episode_count || 0),
+    0
+  );
+  return { totalSeasons, totalEpisodes };
+}
+
 interface LibraryListProps {
   initialItems: MediaItemWithProgress[];
   total: number;
@@ -121,6 +136,14 @@ export function LibraryList({
   const [pending, startTransition] = useTransition();
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [globalLoading, setGlobalLoading] = useState(false);
+
+  // Rating history modal state
+  const [ratingModalOpen, setRatingModalOpen] = useState(false);
+  const [ratingModalItem, setRatingModalItem] = useState<{
+    id: number;
+    title: string;
+    voteAverage: number | null;
+  } | null>(null);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const hasMore = items.length < total;
@@ -375,13 +398,38 @@ export function LibraryList({
                   {item.mediaType === "tv" ? "剧集" : "电影"}
                 </Badge>
                 <StatusControl mediaItemId={item.id} status={item.status} />
+                {item.voteAverage != null && item.voteAverage > 0 && (
+                  <button
+                    onClick={() => {
+                      setRatingModalItem({
+                        id: item.id,
+                        title: item.title,
+                        voteAverage: item.voteAverage,
+                      });
+                      setRatingModalOpen(true);
+                    }}
+                    className="flex flex-shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs transition-colors hover:bg-accent"
+                    title="查看评分历史"
+                  >
+                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                    <span className="font-medium">{item.voteAverage.toFixed(1)}</span>
+                  </button>
+                )}
+                {item.rating && (
+                  <span className="flex-shrink-0 text-xs text-muted-foreground">
+                    我的: {item.rating}/10
+                  </span>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">
                 {item.releaseDate || ""}
-                {item.voteAverage
-                  ? ` · ⭐ ${item.voteAverage.toFixed(1)}`
-                  : ""}
-                {item.rating ? ` · 评分: ${item.rating}/10` : ""}
+                {item.mediaType === "tv" && (() => {
+                  const stats = getTvStats(item.tvProgress);
+                  if (stats && stats.totalEpisodes > 0) {
+                    return ` · 共 ${stats.totalSeasons}季${stats.totalEpisodes}集`;
+                  }
+                  return "";
+                })()}
                 {!item.isVisible ? " · 🔒 隐藏" : ""}
               </p>
               {item.mediaType === "tv" && item.tvProgress && (() => {
@@ -451,6 +499,20 @@ export function LibraryList({
           </p>
         )}
       </div>
+
+      {/* Rating history modal */}
+      {ratingModalItem && (
+        <RatingHistoryModal
+          open={ratingModalOpen}
+          onOpenChange={(open) => {
+            setRatingModalOpen(open);
+            if (!open) setRatingModalItem(null);
+          }}
+          mediaItemId={ratingModalItem.id}
+          title={ratingModalItem.title}
+          currentRating={ratingModalItem.voteAverage}
+        />
+      )}
     </>
   );
 }
