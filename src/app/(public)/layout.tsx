@@ -3,6 +3,7 @@ import { Film, Settings } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { PublicSearch } from "@/components/public-search";
+import { AnimatedBackground } from "@/components/animated-background";
 
 export default function PublicLayout({
   children,
@@ -11,6 +12,7 @@ export default function PublicLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col">
+      <AnimatedBackground />
       <header className="sticky top-0 z-50 bg-transparent">
         <div className="absolute inset-0 bg-background/60 backdrop-blur-md" />
         <div className="container relative mx-auto flex h-14 items-center justify-between px-4">
