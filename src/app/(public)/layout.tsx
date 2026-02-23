@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Film, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { PublicSearch } from "@/components/public-search";
 import { AnimatedBackground } from "@/components/animated-background";
+import { AppIcon } from "@/components/app-icon";
 
 export default function PublicLayout({
   children,
@@ -18,7 +19,7 @@ export default function PublicLayout({
         <div className="absolute inset-x-0 bottom-0 h-px bg-border/40" />
         <div className="container relative mx-auto flex h-14 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Film className="h-5 w-5 text-primary" />
+            <AppIcon className="h-5 w-5" />
             追剧清单
           </Link>
           <div className="flex items-center gap-4">
