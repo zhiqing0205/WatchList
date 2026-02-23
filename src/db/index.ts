@@ -7,6 +7,7 @@ const client = createClient({
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
+export { client };
 export const db = drizzle(client, { schema });
 
 // Auto-migrate: create tables if they don't exist
