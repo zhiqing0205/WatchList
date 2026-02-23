@@ -13,8 +13,9 @@ export default function PublicLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <AnimatedBackground />
-      <header className="sticky top-0 z-50 bg-transparent">
-        <div className="absolute inset-0 bg-background/60 backdrop-blur-md" />
+      <header className="sticky top-0 z-50">
+        <div className="absolute inset-0 backdrop-blur-lg" />
+        <div className="absolute inset-x-0 bottom-0 h-px bg-border/40" />
         <div className="container relative mx-auto flex h-14 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Film className="h-5 w-5 text-primary" />
@@ -53,7 +54,8 @@ export default function PublicLayout({
       </header>
       <main className="flex-1">{children}</main>
       <footer className="relative z-10">
-        <div className="absolute inset-0 bg-background/60 backdrop-blur-md" />
+        <div className="absolute inset-0 backdrop-blur-lg" />
+        <div className="absolute inset-x-0 top-0 h-px bg-border/40" />
         <div className="container relative mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
           追剧清单 &copy; {new Date().getFullYear()}
         </div>
