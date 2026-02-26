@@ -3,8 +3,8 @@ export const dynamic = "force-dynamic";
 import Image from "next/image";
 import { getDashboardStats } from "@/app/admin/_actions/media";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tv, Film, Eye, CheckCircle, History, Layers } from "lucide-react";
-import { formatShortDateCST } from "@/lib/utils";
+import { Tv, Film, Eye, CheckCircle, History, Plus, BarChart3, CloudUpload } from "lucide-react";
+import { formatShortDateCST, formatDateTimeCST } from "@/lib/utils";
 import { getImageUrl } from "@/lib/tmdb";
 import Link from "next/link";
 import {
@@ -71,38 +71,42 @@ export default async function AdminDashboard() {
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">总数</CardTitle>
-            <Layers className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">近七日入库</CardTitle>
+            <Plus className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold">{stats.recent7dAdded}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">剧集</CardTitle>
-            <Tv className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">近七日看完</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.byType.tv || 0}</div>
+            <div className="text-2xl font-bold">{stats.recent7dCompleted}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">电影</CardTitle>
-            <Film className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">评分历史</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.byType.movie || 0}</div>
+            <div className="text-2xl font-bold">{stats.ratingHistoryTotal}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">在看</CardTitle>
-            <Eye className="h-4 w-4 text-blue-500" />
+            <CardTitle className="text-sm font-medium">上次备份</CardTitle>
+            <CloudUpload className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.byStatus.watching || 0}</div>
+            <div className="text-lg font-bold">
+              {stats.lastBackupTime
+                ? formatDateTimeCST(stats.lastBackupTime)
+                : "未备份"}
+            </div>
           </CardContent>
         </Card>
       </div>

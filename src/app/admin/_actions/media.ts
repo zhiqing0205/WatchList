@@ -888,6 +888,33 @@ export async function getDashboardStats() {
     .groupBy(sql`strftime('%Y-%m', ${mediaItems.createdAt})`)
     .orderBy(sql`strftime('%Y-%m', ${mediaItems.createdAt})`);
 
+  // Recent 7 days: added count
+  const [recent7dAdded] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(mediaItems)
+    .where(sql`${mediaItems.createdAt} >= datetime('now', '-7 days')`);
+
+  // Recent 7 days: completed count (status changed to completed in last 7 days)
+  const [recent7dCompleted] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(progressHistory)
+    .where(
+      sql`${progressHistory.action} = 'status_changed' AND json_extract(${progressHistory.detail}, '$.to') = 'completed' AND ${progressHistory.createdAt} >= datetime('now', '-7 days')`
+    );
+
+  // Rating history total count
+  const [ratingHistoryCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(ratingHistory);
+
+  // Last backup time from site_config
+  const { siteConfig: siteConfigTable } = await import("@/db/schema");
+  const [backupRow] = await db
+    .select()
+    .from(siteConfigTable)
+    .where(eq(siteConfigTable.key, "last_backup_time"))
+    .limit(1);
+
   const recentHistory = await getProgressHistoryList(10);
 
   return {
@@ -897,6 +924,10 @@ export async function getDashboardStats() {
     ratingDistribution: ratingCounts.map((r) => ({ rating: r.rating!, count: r.count })),
     tagDistribution: tagCounts.map((t) => ({ name: t.name, color: t.color, count: t.count })),
     monthlyAdds: monthlyAdds.map((m) => ({ month: m.month, count: m.count })),
+    recent7dAdded: recent7dAdded.count,
+    recent7dCompleted: recent7dCompleted.count,
+    ratingHistoryTotal: ratingHistoryCount.count,
+    lastBackupTime: backupRow?.value || null,
     recentHistory,
   };
 }
