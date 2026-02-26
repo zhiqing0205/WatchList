@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 
 const STATUS_COLORS: Record<string, string> = {
+  airing: "#f97316",
   watching: "#3b82f6",
   completed: "#22c55e",
   planned: "#eab308",
@@ -11,6 +12,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
+  airing: "热映中",
   watching: "在看",
   completed: "已看",
   planned: "想看",
@@ -97,8 +99,9 @@ interface TagBarProps {
 
 export function TagBarChart({ data }: TagBarProps) {
   const router = useRouter();
+  const filtered = data.filter((d) => d.count > 1);
 
-  if (data.length === 0) {
+  if (filtered.length === 0) {
     return (
       <p className="py-4 text-center text-sm text-muted-foreground">
         暂无标签数据
@@ -106,11 +109,11 @@ export function TagBarChart({ data }: TagBarProps) {
     );
   }
 
-  const max = Math.max(...data.map((d) => d.count));
+  const max = Math.max(...filtered.map((d) => d.count));
 
   return (
     <div className="flex flex-col gap-2">
-      {data.map((item) => {
+      {filtered.map((item) => {
         const pct = max > 0 ? (item.count / max) * 100 : 0;
         return (
           <button
