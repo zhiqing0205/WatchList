@@ -113,8 +113,8 @@ export default async function AdminDashboard() {
 
       {/* Charts: Status pie + Tag bar */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="px-3 pb-0 pt-3">
+        <Card className="gap-2 py-3">
+          <CardHeader className="px-3 pb-0">
             <CardTitle className="text-sm font-medium">状态分布</CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-2">
@@ -127,8 +127,8 @@ export default async function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="px-3 pb-0 pt-3">
+        <Card className="gap-2 py-3">
+          <CardHeader className="px-3 pb-0">
             <CardTitle className="text-sm font-medium">标签分布</CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-2">
