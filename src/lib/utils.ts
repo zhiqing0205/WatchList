@@ -10,6 +10,10 @@ export function cn(...inputs: ClassValue[]) {
  * SQLite stores `datetime('now')` as UTC without timezone suffix.
  */
 function toCST(dateStr: string): Date {
+  // ISO strings (contain "T") already have timezone info; SQLite datetime('now') does not
+  if (dateStr.includes("T")) {
+    return new Date(dateStr);
+  }
   return new Date(dateStr + "Z");
 }
 
