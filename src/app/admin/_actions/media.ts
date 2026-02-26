@@ -6,6 +6,21 @@ import { eq, desc, asc, sql, and, like, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { TmdbMediaDetails } from "@/lib/tmdb";
 
+// Helper: build ORDER BY clause from sort parameters
+function buildSortOrder(sortField?: string, sortDir?: string) {
+  const dir = sortDir === "asc" ? sql.raw("ASC") : sql.raw("DESC");
+  switch (sortField) {
+    case "rating":
+      return sql`COALESCE(${mediaItems.rating}, ${mediaItems.voteAverage}, 0) ${dir}`;
+    case "episodes":
+      return sql`(SELECT COALESCE(tp.total_seasons, 0) FROM tv_progress tp WHERE tp.media_item_id = ${mediaItems.id}) ${dir}`;
+    case "date":
+      return sql`${mediaItems.releaseDate} ${dir}`;
+    default:
+      return desc(mediaItems.updatedAt);
+  }
+}
+
 function revalidateAll(mediaItemId?: number) {
   revalidatePath("/admin/library");
   revalidatePath("/admin");
@@ -149,6 +164,8 @@ export async function getMediaItemsWithProgress(options?: {
   page?: number;
   limit?: number;
   visibleOnly?: boolean;
+  sortField?: string;
+  sortDir?: string;
 }) {
   await ensureMigrated();
   const {
@@ -160,6 +177,8 @@ export async function getMediaItemsWithProgress(options?: {
     page = 1,
     limit = 20,
     visibleOnly = false,
+    sortField,
+    sortDir,
   } = options || {};
 
   const conditions = [];
@@ -186,7 +205,7 @@ export async function getMediaItemsWithProgress(options?: {
       .select()
       .from(mediaItems)
       .where(where)
-      .orderBy(desc(mediaItems.updatedAt))
+      .orderBy(buildSortOrder(sortField, sortDir))
       .limit(limit)
       .offset((page - 1) * limit),
     db
@@ -861,9 +880,11 @@ export async function getMediaItemsGroupedByStatus(options?: {
   mediaType?: string;
   visibleOnly?: boolean;
   limit?: number;
+  sortField?: string;
+  sortDir?: string;
 }) {
   await ensureMigrated();
-  const { mediaType, visibleOnly = true, limit = 15 } = options || {};
+  const { mediaType, visibleOnly = true, limit = 15, sortField, sortDir } = options || {};
 
   const statuses = ["watching", "planned", "completed", "on_hold"] as const;
   const groups: { status: string; items: Awaited<ReturnType<typeof getMediaItemsWithProgress>>["items"]; total: number }[] = [];
@@ -878,7 +899,7 @@ export async function getMediaItemsGroupedByStatus(options?: {
     const where = and(...conditions);
 
     const [items, countResult] = await Promise.all([
-      db.select().from(mediaItems).where(where).orderBy(desc(mediaItems.updatedAt)).limit(limit),
+      db.select().from(mediaItems).where(where).orderBy(buildSortOrder(sortField, sortDir)).limit(limit),
       db.select({ count: sql<number>`count(*)` }).from(mediaItems).where(where),
     ]);
 

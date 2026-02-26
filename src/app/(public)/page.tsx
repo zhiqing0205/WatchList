@@ -10,7 +10,8 @@ import { FilterBar } from "@/components/filter-bar";
 import { Pagination } from "@/components/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusSection } from "@/components/status-section";
-import { SortedMediaGrid } from "@/components/sort-controls";
+import { SortButtons } from "@/components/sort-controls";
+import { MediaGrid } from "@/components/media-card";
 
 const statusLabels: Record<string, string> = {
   watching: "在看",
@@ -26,6 +27,8 @@ interface Props {
     type?: string;
     page?: string;
     q?: string;
+    sort?: string;
+    dir?: string;
   }>;
 }
 
@@ -35,6 +38,8 @@ export default async function HomePage({ searchParams }: Props) {
   const status = params.status || undefined;
   const mediaType = params.type || undefined;
   const search = params.q || undefined;
+  const sort = params.sort || "date";
+  const dir = params.dir || "desc";
 
   const tags = await getAllTags();
 
@@ -49,12 +54,16 @@ export default async function HomePage({ searchParams }: Props) {
       page,
       limit: 20,
       visibleOnly: true,
+      sortField: sort,
+      sortDir: dir,
     });
 
     const urlParams = new URLSearchParams();
     if (status) urlParams.set("status", status);
     if (mediaType) urlParams.set("type", mediaType);
     if (search) urlParams.set("q", search);
+    if (sort !== "date") urlParams.set("sort", sort);
+    if (dir !== "desc") urlParams.set("dir", dir);
     const baseUrl = `/${urlParams.toString() ? `?${urlParams.toString()}` : ""}`;
 
     return (
@@ -68,7 +77,12 @@ export default async function HomePage({ searchParams }: Props) {
           </p>
         )}
         <div className="mt-6">
-          <SortedMediaGrid items={items} />
+          <div className="mb-4 flex justify-end">
+            <Suspense fallback={null}>
+              <SortButtons />
+            </Suspense>
+          </div>
+          <MediaGrid items={items} />
         </div>
         <Pagination
           currentPage={page}
@@ -84,6 +98,8 @@ export default async function HomePage({ searchParams }: Props) {
     mediaType,
     visibleOnly: true,
     limit: 15,
+    sortField: sort,
+    sortDir: dir,
   });
 
   return (
@@ -98,17 +114,24 @@ export default async function HomePage({ searchParams }: Props) {
           <p className="text-sm">稍后再来看看吧</p>
         </div>
       ) : (
-        <div className="mt-6 space-y-10">
-          {groups.map((group) => (
-            <StatusSection
-              key={group.status}
-              status={group.status}
-              label={statusLabels[group.status] || group.status}
-              items={group.items}
-              total={group.total}
-            />
-          ))}
-        </div>
+        <>
+          <div className="mt-6 flex justify-end">
+            <Suspense fallback={null}>
+              <SortButtons />
+            </Suspense>
+          </div>
+          <div className="mt-4 space-y-10">
+            {groups.map((group) => (
+              <StatusSection
+                key={group.status}
+                status={group.status}
+                label={statusLabels[group.status] || group.status}
+                items={group.items}
+                total={group.total}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
