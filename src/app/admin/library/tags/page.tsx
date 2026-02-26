@@ -24,7 +24,7 @@ function slugify(text: string): string {
 }
 
 const statusLabels: Record<string, string> = {
-  airing: "更新中/热映中",
+  airing: "热映中",
   watching: "在看",
   completed: "已看",
   planned: "想看",

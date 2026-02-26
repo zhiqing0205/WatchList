@@ -9,7 +9,7 @@ import type { Tag } from "@/db/schema";
 
 const statusFilters = [
   { value: "", label: "全部" },
-  { value: "airing", label: "更新中/热映中" },
+  { value: "airing", label: "热映中" },
   { value: "watching", label: "在看" },
   { value: "completed", label: "已看" },
   { value: "planned", label: "想看" },

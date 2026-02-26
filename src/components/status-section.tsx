@@ -2,7 +2,7 @@ import { Eye, CheckCircle, Clock, Pause, Radio } from "lucide-react";
 import { MediaGrid, type MediaCardItem } from "@/components/media-card";
 
 const statusIcons: Record<string, React.ReactNode> = {
-  airing: <Radio className="h-5 w-5 text-emerald-400" />,
+  airing: <Radio className="h-5 w-5 text-orange-400" />,
   watching: <Eye className="h-5 w-5 text-blue-400" />,
   completed: <CheckCircle className="h-5 w-5 text-green-400" />,
   planned: <Clock className="h-5 w-5 text-yellow-400" />,

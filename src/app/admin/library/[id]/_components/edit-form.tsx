@@ -378,7 +378,7 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="airing">更新中/热映中</SelectItem>
+                      <SelectItem value="airing">热映中</SelectItem>
                       <SelectItem value="watching">在看</SelectItem>
                       <SelectItem value="completed">已看</SelectItem>
                       <SelectItem value="planned">想看</SelectItem>
