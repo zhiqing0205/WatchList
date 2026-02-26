@@ -16,6 +16,7 @@ import type { Metadata } from "next";
 import type { TmdbCastMember } from "@/lib/tmdb";
 
 const statusLabels: Record<string, string> = {
+  airing: "更新中/热映中",
   watching: "在看",
   completed: "已看",
   planned: "想看",

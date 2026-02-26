@@ -44,6 +44,7 @@ export interface TmdbMediaDetails {
   vote_average: number;
   genres: { id: number; name: string }[];
   origin_country?: string[];
+  status?: string; // TV: "Returning Series", "Ended", "Canceled", etc. Movie: "Released", "In Production", etc.
   runtime?: number;
   number_of_seasons?: number;
   number_of_episodes?: number;

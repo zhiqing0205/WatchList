@@ -193,7 +193,7 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
     setSaving(true);
     try {
       await updateMediaItem(item.id, {
-        status: status as "watching" | "completed" | "planned" | "dropped" | "on_hold",
+        status: status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing",
         rating: rating ? Number(rating) : null,
         notes: notes || null,
         playUrl: playUrl || null,
@@ -378,6 +378,7 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="airing">更新中/热映中</SelectItem>
                       <SelectItem value="watching">在看</SelectItem>
                       <SelectItem value="completed">已看</SelectItem>
                       <SelectItem value="planned">想看</SelectItem>

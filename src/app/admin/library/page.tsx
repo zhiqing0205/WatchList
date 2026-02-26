@@ -10,6 +10,7 @@ import { LibraryList } from "./_components/library-list";
 import { LibrarySearch } from "./_components/library-search";
 
 const statusLabels: Record<string, string> = {
+  airing: "更新中/热映中",
   watching: "在看",
   completed: "已看",
   planned: "想看",

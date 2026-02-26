@@ -21,6 +21,21 @@ function buildSortOrder(sortField?: string, sortDir?: string) {
   }
 }
 
+// Determine if a TMDB item is currently airing/playing
+function isTmdbAiring(mediaType: string, tmdbStatus?: string, releaseDate?: string): boolean {
+  if (mediaType === "tv") {
+    return tmdbStatus === "Returning Series";
+  }
+  if (mediaType === "movie") {
+    // Movie is "热映中" if released within the last 90 days
+    if (tmdbStatus !== "Released" || !releaseDate) return false;
+    const release = new Date(releaseDate);
+    const daysSinceRelease = (Date.now() - release.getTime()) / (1000 * 60 * 60 * 24);
+    return daysSinceRelease >= 0 && daysSinceRelease <= 90;
+  }
+  return false;
+}
+
 function revalidateAll(mediaItemId?: number) {
   revalidatePath("/admin/library");
   revalidatePath("/admin");
@@ -64,6 +79,7 @@ export async function addMediaFromTmdb(
   const releaseDate = details.release_date || details.first_air_date;
   const genres = JSON.stringify(details.genres.map((g) => g.name));
   const originCountry = details.origin_country?.[0] || null;
+  const initialStatus = isTmdbAiring(mediaType, details.status, releaseDate) ? "airing" : "planned";
 
   const existing = await db
     .select()
@@ -89,7 +105,7 @@ export async function addMediaFromTmdb(
       voteAverage: details.vote_average,
       genres,
       originCountry,
-      status: "planned",
+      status: initialStatus,
     })
     .returning();
 
@@ -182,7 +198,7 @@ export async function getMediaItemsWithProgress(options?: {
   } = options || {};
 
   const conditions = [];
-  if (status) conditions.push(eq(mediaItems.status, status as "watching" | "completed" | "planned" | "dropped" | "on_hold"));
+  if (status) conditions.push(eq(mediaItems.status, status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing"));
   if (mediaType) conditions.push(eq(mediaItems.mediaType, mediaType as "movie" | "tv"));
   if (search) conditions.push(like(mediaItems.title, `%${search}%`));
   if (genre) conditions.push(like(mediaItems.genres, `%${genre}%`));
@@ -301,7 +317,7 @@ export async function getMediaItems(options?: {
   } = options || {};
 
   const conditions = [];
-  if (status) conditions.push(eq(mediaItems.status, status as "watching" | "completed" | "planned" | "dropped" | "on_hold"));
+  if (status) conditions.push(eq(mediaItems.status, status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing"));
   if (mediaType) conditions.push(eq(mediaItems.mediaType, mediaType as "movie" | "tv"));
   if (search) conditions.push(like(mediaItems.title, `%${search}%`));
   if (visibleOnly) conditions.push(eq(mediaItems.isVisible, true));
@@ -389,7 +405,7 @@ export async function updateMediaItem(
     .update(mediaItems)
     .set({
       ...data,
-      status: data.status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | undefined,
+      status: data.status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing" | undefined,
       updatedAt: sql`datetime('now')`,
     })
     .where(eq(mediaItems.id, id));
@@ -637,6 +653,15 @@ export async function refetchMediaMetadata(id: number, options?: { silent?: bool
   const genres = JSON.stringify(details.genres.map((g) => g.name));
   const originCountry = details.origin_country?.[0] || null;
 
+  // Auto-detect airing status: only touch "planned" or "airing" items
+  const tmdbAiring = isTmdbAiring(item.mediaType, details.status, releaseDate);
+  let newStatus: string | undefined;
+  if (item.status === "planned" && tmdbAiring) {
+    newStatus = "airing";
+  } else if (item.status === "airing" && !tmdbAiring) {
+    newStatus = "planned";
+  }
+
   await db
     .update(mediaItems)
     .set({
@@ -650,6 +675,7 @@ export async function refetchMediaMetadata(id: number, options?: { silent?: bool
       genres,
       originCountry,
       metadataUpdatedAt: sql`datetime('now')`,
+      ...(newStatus ? { status: newStatus as "airing" | "planned" } : {}),
     })
     .where(eq(mediaItems.id, id));
 
@@ -886,7 +912,7 @@ export async function getMediaItemsGroupedByStatus(options?: {
   await ensureMigrated();
   const { mediaType, visibleOnly = true, limit = 15, sortField, sortDir } = options || {};
 
-  const statuses = ["watching", "planned", "completed", "on_hold"] as const;
+  const statuses = ["airing", "watching", "planned", "completed", "on_hold"] as const;
   const groups: { status: string; items: Awaited<ReturnType<typeof getMediaItemsWithProgress>>["items"]; total: number }[] = [];
 
   for (const status of statuses) {
