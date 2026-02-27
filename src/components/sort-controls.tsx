@@ -11,21 +11,24 @@ const sortFieldDefs: { field: SortField; label: string }[] = [
   { field: "episodes", label: "集数" },
 ];
 
-export function SortButtons() {
+export function SortButtons({ statusKey }: { statusKey?: string } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentSort = (searchParams.get("sort") || "date") as SortField;
-  const currentDir = searchParams.get("dir") || "desc";
+
+  const sortParam = statusKey ? `sort_${statusKey}` : "sort";
+  const dirParam = statusKey ? `dir_${statusKey}` : "dir";
+  const currentSort = (searchParams.get(sortParam) || "date") as SortField;
+  const currentDir = searchParams.get(dirParam) || "desc";
 
   const handleToggle = (field: SortField) => {
     const params = new URLSearchParams(searchParams.toString());
     if (currentSort === field) {
-      params.set("sort", field);
-      params.set("dir", currentDir === "desc" ? "asc" : "desc");
+      params.set(sortParam, field);
+      params.set(dirParam, currentDir === "desc" ? "asc" : "desc");
     } else {
-      params.set("sort", field);
-      params.set("dir", "desc");
+      params.set(sortParam, field);
+      params.set(dirParam, "desc");
     }
     params.delete("page");
     router.push(`${pathname}?${params.toString()}`);

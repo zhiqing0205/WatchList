@@ -939,9 +939,10 @@ export async function getMediaItemsGroupedByStatus(options?: {
   limit?: number;
   sortField?: string;
   sortDir?: string;
+  statusSorts?: Record<string, { sortField?: string; sortDir?: string }>;
 }) {
   await ensureMigrated();
-  const { mediaType, visibleOnly = true, limit = 15, sortField, sortDir } = options || {};
+  const { mediaType, visibleOnly = true, limit = 15, sortField, sortDir, statusSorts } = options || {};
 
   const statuses = ["airing", "watching", "planned", "completed", "on_hold"] as const;
   const groups: { status: string; items: Awaited<ReturnType<typeof getMediaItemsWithProgress>>["items"]; total: number }[] = [];
@@ -955,8 +956,12 @@ export async function getMediaItemsGroupedByStatus(options?: {
 
     const where = and(...conditions);
 
+    const ss = statusSorts?.[status];
+    const sf = ss?.sortField || sortField;
+    const sd = ss?.sortDir || sortDir;
+
     const [items, countResult] = await Promise.all([
-      db.select().from(mediaItems).where(where).orderBy(buildSortOrder(sortField, sortDir)).limit(limit),
+      db.select().from(mediaItems).where(where).orderBy(buildSortOrder(sf, sd)).limit(limit),
       db.select({ count: sql<number>`count(*)` }).from(mediaItems).where(where),
     ]);
 

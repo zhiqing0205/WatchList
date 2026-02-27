@@ -23,24 +23,17 @@ const statusLabels: Record<string, string> = {
 };
 
 interface Props {
-  searchParams: Promise<{
-    status?: string;
-    type?: string;
-    page?: string;
-    q?: string;
-    sort?: string;
-    dir?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function HomePage({ searchParams }: Props) {
   const params = await searchParams;
   const page = Number(params.page) || 1;
-  const status = params.status || undefined;
-  const mediaType = params.type || undefined;
-  const search = params.q || undefined;
-  const sort = params.sort || "date";
-  const dir = params.dir || "desc";
+  const status = (params.status as string) || undefined;
+  const mediaType = (params.type as string) || undefined;
+  const search = (params.q as string) || undefined;
+  const sort = (params.sort as string) || "date";
+  const dir = (params.dir as string) || "desc";
 
   const tags = await getAllTags();
 
@@ -95,12 +88,21 @@ export default async function HomePage({ searchParams }: Props) {
   }
 
   // Default: grouped by status
+  const allStatuses = ["airing", "watching", "planned", "completed", "on_hold"];
+  const statusSorts: Record<string, { sortField?: string; sortDir?: string }> = {};
+  for (const s of allStatuses) {
+    const sf = params[`sort_${s}`] as string | undefined;
+    const sd = params[`dir_${s}`] as string | undefined;
+    if (sf || sd) {
+      statusSorts[s] = { sortField: sf || "date", sortDir: sd || "desc" };
+    }
+  }
+
   const groups = await getMediaItemsGroupedByStatus({
     mediaType,
     visibleOnly: true,
     limit: 15,
-    sortField: sort,
-    sortDir: dir,
+    statusSorts,
   });
 
   return (
@@ -115,24 +117,17 @@ export default async function HomePage({ searchParams }: Props) {
           <p className="text-sm">稍后再来看看吧</p>
         </div>
       ) : (
-        <>
-          <div className="mt-6 flex justify-end">
-            <Suspense fallback={null}>
-              <SortButtons />
-            </Suspense>
-          </div>
-          <div className="mt-4 space-y-10">
-            {groups.map((group) => (
-              <StatusSection
-                key={group.status}
-                status={group.status}
-                label={statusLabels[group.status] || group.status}
-                items={group.items}
-                total={group.total}
-              />
-            ))}
-          </div>
-        </>
+        <div className="mt-6 space-y-10">
+          {groups.map((group) => (
+            <StatusSection
+              key={group.status}
+              status={group.status}
+              label={statusLabels[group.status] || group.status}
+              items={group.items}
+              total={group.total}
+            />
+          ))}
+        </div>
       )}
     </div>
   );

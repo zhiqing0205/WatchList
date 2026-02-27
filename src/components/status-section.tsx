@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { Eye, CheckCircle, Clock, Pause, Radio } from "lucide-react";
 import { MediaGrid, type MediaCardItem } from "@/components/media-card";
+import { SortButtons } from "@/components/sort-controls";
 
 const statusIcons: Record<string, React.ReactNode> = {
   airing: <Radio className="h-5 w-5 text-orange-400" />,
@@ -19,7 +21,7 @@ interface StatusSectionProps {
 export function StatusSection({ status, label, items, total }: StatusSectionProps) {
   return (
     <section>
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-bold">
           {statusIcons[status]}
           {label}
@@ -27,6 +29,9 @@ export function StatusSection({ status, label, items, total }: StatusSectionProp
             {total}
           </span>
         </h2>
+        <Suspense fallback={null}>
+          <SortButtons statusKey={status} />
+        </Suspense>
       </div>
       <MediaGrid
         items={items}
