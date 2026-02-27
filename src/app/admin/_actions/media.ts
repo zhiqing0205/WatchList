@@ -164,6 +164,7 @@ export async function addMediaFromTmdb(
   }
 
   await recordHistory(inserted.id, "added", { title, mediaType });
+  await recordRatingSnapshot(inserted.id, details.vote_average);
   await writeSystemLog("info", "media_added", `添加影视「${title}」`, { mediaType, tmdbId: details.id });
 
   revalidateAll();
