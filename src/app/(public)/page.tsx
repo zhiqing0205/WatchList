@@ -102,6 +102,8 @@ export default async function HomePage({ searchParams }: Props) {
     mediaType,
     visibleOnly: true,
     limit: 15,
+    sortField: "date",
+    sortDir: "desc",
     statusSorts,
   });
 
