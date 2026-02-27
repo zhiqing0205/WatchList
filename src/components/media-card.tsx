@@ -89,6 +89,7 @@ type AnimPhase = "idle" | "zooming" | "sweep-ready" | "sweeping";
 
 export function MediaCard({ item }: { item: MediaCardItem }) {
   const watchPercent = computeWatchPercent(item);
+  const isFullColor = item.status === "airing" || item.status === "planned";
   const tvStats =
     item.mediaType === "tv" ? getTvStats(item.tvProgress) : null;
   const ratingValue =
@@ -216,7 +217,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
           src={getImageUrl(item.posterPath)}
           alt={item.title}
           fill
-          className="object-cover grayscale"
+          className={`object-cover ${isFullColor ? "" : "grayscale"}`}
           style={{
             transform: imageScale,
             transition: `transform ${transitionTiming}`,
@@ -224,6 +225,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
         />
         {/* Color layer - opacity fade + clip sweep */}
+        {!isFullColor && (
         <Image
           src={getImageUrl(item.posterPath)}
           alt=""
@@ -233,6 +235,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
           aria-hidden
         />
+        )}
 
         {/* Gradient overlays */}
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
