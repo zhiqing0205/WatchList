@@ -15,9 +15,8 @@ function buildSortOrder(sortField?: string, sortDir?: string) {
     case "episodes":
       return sql`(SELECT COALESCE(tp.total_seasons, 0) FROM tv_progress tp WHERE tp.media_item_id = ${mediaItems.id}) ${dir}`;
     case "date":
-      return sql`${mediaItems.releaseDate} ${dir}`;
     default:
-      return desc(mediaItems.updatedAt);
+      return sql`${mediaItems.releaseDate} ${dir}`;
   }
 }
 
