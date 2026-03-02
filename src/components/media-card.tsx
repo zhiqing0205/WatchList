@@ -533,8 +533,11 @@ export function MediaGrid({
         <PreviewPopup item={hoveredItem} anchorRect={hoveredRect} />
       )}
       {/* Full-screen dim overlay */}
-      {hoveredId !== null && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/40 pointer-events-none" />,
+      {createPortal(
+        <div
+          className="fixed inset-0 z-[100] bg-black/40 pointer-events-none transition-opacity duration-300"
+          style={{ opacity: hoveredId !== null ? 1 : 0 }}
+        />,
         document.body
       )}
     </GridHoverContext.Provider>
