@@ -97,7 +97,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
   const countryName = getCountryName(item.originCountry);
 
   const { hoveredId, onHoverStart, onHoverEnd } = useContext(GridHoverContext);
-  const dimmed = hoveredId !== null && hoveredId !== item.id;
+  const isHovered = hoveredId === item.id;
 
   const cardRef = useRef<HTMLAnchorElement>(null);
   const [phase, setPhase] = useState<AnimPhase>("idle");
@@ -205,8 +205,8 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
       href={`/${item.id}`}
       className="group block"
       style={{
-        opacity: dimmed ? 0.35 : 1,
-        transition: "opacity 0.3s ease",
+        position: "relative",
+        zIndex: isHovered ? 101 : undefined,
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -334,7 +334,7 @@ function PreviewPopup({
   return createPortal(
     <div
       ref={popupRef}
-      className="fixed z-50 w-80 max-w-[40vw] rounded-xl border bg-card/95 p-4 shadow-2xl backdrop-blur-md"
+      className="fixed z-[102] w-80 max-w-[40vw] rounded-xl border bg-card/95 p-4 shadow-2xl backdrop-blur-md"
       style={{
         top: pos?.top ?? -9999,
         left: pos?.left ?? -9999,
@@ -531,6 +531,11 @@ export function MediaGrid({
       {/* Preview popup */}
       {showPreview && hoveredItem && hoveredRect && (
         <PreviewPopup item={hoveredItem} anchorRect={hoveredRect} />
+      )}
+      {/* Full-screen dim overlay */}
+      {hoveredId !== null && createPortal(
+        <div className="fixed inset-0 z-[100] bg-black/40 pointer-events-none" />,
+        document.body
       )}
     </GridHoverContext.Provider>
   );
