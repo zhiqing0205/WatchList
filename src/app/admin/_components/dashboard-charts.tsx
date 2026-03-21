@@ -1,24 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-
-const STATUS_COLORS: Record<string, string> = {
-  airing: "#f97316",
-  watching: "#3b82f6",
-  completed: "#22c55e",
-  planned: "#eab308",
-  on_hold: "#6b7280",
-  dropped: "#ef4444",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  airing: "热映中",
-  watching: "在看",
-  completed: "已看",
-  planned: "想看",
-  on_hold: "搁置",
-  dropped: "弃剧",
-};
+import { STATUS_HEX_COLORS, STATUS_LABELS } from "@/lib/status";
 
 interface StatusPieProps {
   byStatus: Record<string, number>;
@@ -31,9 +14,9 @@ export function StatusPieChart({ byStatus, total, tvCount, movieCount }: StatusP
   const data = Object.entries(byStatus)
     .map(([status, count]) => ({
       key: status,
-      label: STATUS_LABELS[status] || status,
+      label: STATUS_LABELS[status as keyof typeof STATUS_LABELS] || status,
       value: count,
-      color: STATUS_COLORS[status] || "#94a3b8",
+      color: STATUS_HEX_COLORS[status as keyof typeof STATUS_HEX_COLORS] || "#94a3b8",
     }))
     .filter((d) => d.value > 0);
 

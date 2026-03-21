@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { STATUS_DROPDOWN_CONFIG } from "@/lib/status";
 import { computeTvWatchedInfo } from "@/lib/progress";
 import {
   advanceEpisode,
@@ -468,13 +469,7 @@ export function MovieProgressControl({
 }
 
 // Status dropdown with colored options and optimistic update
-const statusConfig = [
-  { value: "watching", label: "在看", dot: "bg-blue-500", bg: "bg-blue-500/10 text-blue-600 border-blue-500/30" },
-  { value: "planned", label: "想看", dot: "bg-yellow-500", bg: "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" },
-  { value: "completed", label: "已看", dot: "bg-green-500", bg: "bg-green-500/10 text-green-600 border-green-500/30" },
-  { value: "on_hold", label: "搁置", dot: "bg-gray-500", bg: "bg-gray-500/10 text-gray-500 border-gray-500/30" },
-  { value: "dropped", label: "弃剧", dot: "bg-red-500", bg: "bg-red-500/10 text-red-600 border-red-500/30" },
-];
+const statusConfig = STATUS_DROPDOWN_CONFIG;
 
 export function StatusControl({
   mediaItemId,

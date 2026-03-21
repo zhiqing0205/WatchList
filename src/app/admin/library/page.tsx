@@ -8,15 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Tags } from "lucide-react";
 import { LibraryList } from "./_components/library-list";
 import { LibrarySearch } from "./_components/library-search";
-
-const statusLabels: Record<string, string> = {
-  airing: "热映中",
-  watching: "在看",
-  completed: "已看",
-  planned: "想看",
-  dropped: "弃剧",
-  on_hold: "搁置",
-};
+import { STATUS_LABELS } from "@/lib/status";
 
 interface Props {
   searchParams: Promise<{ page?: string; status?: string; type?: string; search?: string; genre?: string; tag?: string }>;
@@ -64,7 +56,7 @@ export default async function LibraryPage({ searchParams }: Props) {
         <Link href="/admin/library">
           <Badge variant={!params.status && !params.type ? "default" : "outline"}>全部</Badge>
         </Link>
-        {Object.entries(statusLabels).map(([value, label]) => (
+        {Object.entries(STATUS_LABELS).map(([value, label]) => (
           <Link key={value} href={`/admin/library?status=${value}`}>
             <Badge variant={params.status === value ? "default" : "outline"}>
               {label}

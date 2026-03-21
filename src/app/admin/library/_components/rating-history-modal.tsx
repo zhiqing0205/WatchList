@@ -14,6 +14,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
 import { getRatingHistory } from "@/app/admin/_actions/media";
@@ -44,6 +45,10 @@ function formatShortDate(dateStr: string | null) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+function round1(n: number) {
+  return Math.round(n * 10) / 10;
+}
+
 export function RatingHistoryModal({
   open,
   onOpenChange,
@@ -69,11 +74,16 @@ export function RatingHistoryModal({
   }));
 
   const scores = chartData.map((d) => d.score);
-  const min = scores.length > 0 ? Math.floor(Math.min(...scores) * 10) / 10 : 0;
-  const max = scores.length > 0 ? Math.ceil(Math.max(...scores) * 10) / 10 : 10;
+  const minScore = scores.length > 0 ? Math.min(...scores) : 0;
+  const maxScore = scores.length > 0 ? Math.max(...scores) : 10;
+  const avg = scores.length > 0 ? round1(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
   const padding = 0.3;
-  const yMin = Math.max(0, min - padding);
-  const yMax = Math.min(10, max + padding);
+  const yMin = round1(Math.max(0, round1(Math.floor(minScore * 10) / 10) - padding));
+  const yMax = round1(Math.min(10, round1(Math.ceil(maxScore * 10) / 10) + padding));
+
+  // Find indices of min/max points
+  const minIdx = scores.indexOf(minScore);
+  const maxIdx = scores.lastIndexOf(maxScore);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -104,7 +114,7 @@ export function RatingHistoryModal({
             {data.length >= 2 && (
               <div className="rounded-lg border bg-card p-3">
                 <ResponsiveContainer width="100%" height={180}>
-                  <LineChart data={chartData} margin={{ top: 5, right: 10, left: -15, bottom: 0 }}>
+                  <LineChart data={chartData} margin={{ top: 14, right: 32, left: -10, bottom: 0 }}>
                     <XAxis
                       dataKey="date"
                       tick={{ fontSize: 10, className: "fill-muted-foreground" }}
@@ -118,6 +128,7 @@ export function RatingHistoryModal({
                       tickLine={false}
                       axisLine={false}
                       tickCount={4}
+                      tickFormatter={(v: number) => v.toFixed(1)}
                     />
                     <Tooltip
                       contentStyle={{
@@ -132,12 +143,43 @@ export function RatingHistoryModal({
                         "评分",
                       ]}
                     />
+                    <ReferenceLine
+                      y={avg}
+                      stroke="var(--muted-foreground)"
+                      strokeDasharray="4 3"
+                      strokeOpacity={0.5}
+                      label={{
+                        value: `avg ${avg.toFixed(1)}`,
+                        position: "right",
+                        fontSize: 9,
+                        fill: "var(--muted-foreground)",
+                      }}
+                    />
                     <Line
                       type="monotone"
                       dataKey="score"
                       stroke="var(--primary)"
                       strokeWidth={2}
-                      dot={{ r: 3, fill: "var(--primary)" }}
+                      dot={(props: Record<string, unknown>) => {
+                        const cx = props.cx as number | undefined;
+                        const cy = props.cy as number | undefined;
+                        const index = props.index as number;
+                        const payload = props.payload as { score: number };
+                        if (cx == null || cy == null) return <g key={index} />;
+                        const isMin = index === minIdx && minScore !== maxScore;
+                        const isMax = index === maxIdx && minScore !== maxScore;
+                        if (isMin || isMax) {
+                          return (
+                            <g key={index}>
+                              <circle cx={cx} cy={cy} r={4} fill={isMax ? "#22c55e" : "#ef4444"} stroke="white" strokeWidth={1.5} />
+                              <text x={cx} y={cy - 10} textAnchor="middle" fontSize={10} fontWeight={600} fill={isMax ? "#22c55e" : "#ef4444"}>
+                                {round1(payload.score).toFixed(1)}
+                              </text>
+                            </g>
+                          );
+                        }
+                        return <circle key={index} cx={cx} cy={cy} r={3} fill="var(--primary)" />;
+                      }}
                       activeDot={{ r: 5 }}
                     />
                   </LineChart>
@@ -162,7 +204,7 @@ export function RatingHistoryModal({
                     const diff = prev
                       ? point.voteAverage - prev.voteAverage
                       : null;
-                    const diffRounded = diff !== null ? Math.round(diff * 100) / 100 : null;
+                    const diffRounded = diff !== null ? round1(diff) : null;
 
                     return (
                       <tr
@@ -181,17 +223,17 @@ export function RatingHistoryModal({
                           ) : diffRounded > 0 ? (
                             <span className="inline-flex items-center gap-0.5 text-xs font-medium text-green-600">
                               <TrendingUp className="h-3 w-3" />
-                              +{diffRounded.toFixed(2)}
+                              +{diffRounded.toFixed(1)}
                             </span>
                           ) : diffRounded < 0 ? (
                             <span className="inline-flex items-center gap-0.5 text-xs font-medium text-red-500">
                               <TrendingDown className="h-3 w-3" />
-                              {diffRounded.toFixed(2)}
+                              {diffRounded.toFixed(1)}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
                               <Minus className="h-3 w-3" />
-                              0.00
+                              0.0
                             </span>
                           )}
                         </td>

@@ -12,15 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusSection } from "@/components/status-section";
 import { SortButtons } from "@/components/sort-controls";
 import { MediaGrid } from "@/components/media-card";
-
-const statusLabels: Record<string, string> = {
-  airing: "热映中",
-  watching: "在看",
-  completed: "已看",
-  planned: "想看",
-  on_hold: "搁置",
-  dropped: "弃剧",
-};
+import { STATUS_LABELS, HOMEPAGE_STATUS_ORDER } from "@/lib/status";
 
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -88,7 +80,7 @@ export default async function HomePage({ searchParams }: Props) {
   }
 
   // Default: grouped by status
-  const allStatuses = ["airing", "watching", "planned", "completed", "on_hold"];
+  const allStatuses = HOMEPAGE_STATUS_ORDER;
   const statusSorts: Record<string, { sortField?: string; sortDir?: string }> = {};
   for (const s of allStatuses) {
     const sf = params[`sort_${s}`] as string | undefined;
@@ -124,7 +116,7 @@ export default async function HomePage({ searchParams }: Props) {
             <StatusSection
               key={group.status}
               status={group.status}
-              label={statusLabels[group.status] || group.status}
+              label={STATUS_LABELS[group.status as keyof typeof STATUS_LABELS] || group.status}
               items={group.items}
               total={group.total}
             />

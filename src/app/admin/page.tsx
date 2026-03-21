@@ -11,15 +11,7 @@ import {
   StatusPieChart,
   TagBarChart,
 } from "./_components/dashboard-charts";
-
-const statusLabels: Record<string, string> = {
-  airing: "热映中",
-  watching: "在看",
-  completed: "已看",
-  planned: "想看",
-  on_hold: "搁置",
-  dropped: "弃剧",
-};
+import { STATUS_LABELS } from "@/lib/status";
 
 const actionLabels: Record<string, string> = {
   episode_watched: "更新进度",
@@ -47,7 +39,7 @@ function formatHistoryDetail(action: string, detail: string | null): string {
       case "movie_watched":
         return d.watched ? "标记已看" : "标记未看";
       case "status_changed":
-        return `${statusLabels[d.from] || d.from} → ${statusLabels[d.to] || d.to}`;
+        return `${STATUS_LABELS[d.from as keyof typeof STATUS_LABELS] || d.from} → ${STATUS_LABELS[d.to as keyof typeof STATUS_LABELS] || d.to}`;
       case "rating_changed":
         return `${d.from || "无"} → ${d.to || "无"}`;
       case "added":

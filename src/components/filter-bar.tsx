@@ -5,16 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { FILTER_STATUS_OPTIONS } from "@/lib/status";
 import type { Tag } from "@/db/schema";
-
-const statusFilters = [
-  { value: "", label: "全部" },
-  { value: "airing", label: "热映中" },
-  { value: "watching", label: "在看" },
-  { value: "completed", label: "已看" },
-  { value: "planned", label: "想看" },
-  { value: "on_hold", label: "搁置" },
-];
 
 const typeFilters = [
   { value: "", label: "全部" },
@@ -56,7 +48,7 @@ export function FilterBar({ tags, hideStatus }: { tags: Tag[]; hideStatus?: bool
       {!hideStatus && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground mr-1">状态:</span>
-          {statusFilters.map((filter) => (
+          {FILTER_STATUS_OPTIONS.map((filter) => (
             <Link key={filter.value} href={buildUrl("status", filter.value)}>
               <Badge
                 variant={currentStatus === filter.value ? "default" : "outline"}

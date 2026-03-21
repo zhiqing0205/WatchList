@@ -7,6 +7,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
 
@@ -19,6 +20,10 @@ function formatDate(dateStr: string | null) {
   if (!dateStr) return "";
   const d = new Date(dateStr + "Z");
   return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function round1(n: number) {
+  return Math.round(n * 10) / 10;
 }
 
 export function RatingTrendChart({
@@ -69,16 +74,21 @@ export function RatingTrendChart({
   }));
 
   const scores = chartData.map((d) => d.score);
-  const min = Math.floor(Math.min(...scores) * 10) / 10;
-  const max = Math.ceil(Math.max(...scores) * 10) / 10;
-  const padding = 0.2;
-  const yMin = Math.max(0, min - padding);
-  const yMax = Math.min(10, max + padding);
+  const minScore = Math.min(...scores);
+  const maxScore = Math.max(...scores);
+  const avg = round1(scores.reduce((a, b) => a + b, 0) / scores.length);
+  const padding = 0.3;
+  const yMin = round1(Math.max(0, round1(Math.floor(minScore * 10) / 10) - padding));
+  const yMax = round1(Math.min(10, round1(Math.ceil(maxScore * 10) / 10) + padding));
+
+  // Find indices of min/max points
+  const minIdx = scores.indexOf(minScore);
+  const maxIdx = scores.lastIndexOf(maxScore);
 
   return (
     <div className={className}>
       <ResponsiveContainer width="100%" height={120}>
-        <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+        <LineChart data={chartData} margin={{ top: 14, right: 28, left: -10, bottom: 0 }}>
           <XAxis
             dataKey="date"
             tick={{ fontSize: 10, className: "fill-muted-foreground" }}
@@ -92,6 +102,7 @@ export function RatingTrendChart({
             tickLine={false}
             axisLine={false}
             tickCount={3}
+            tickFormatter={(v: number) => v.toFixed(1)}
           />
           <Tooltip
             contentStyle={{
@@ -103,12 +114,43 @@ export function RatingTrendChart({
             }}
             formatter={(value: number | undefined) => [value != null ? value.toFixed(1) : "-", "评分"]}
           />
+          <ReferenceLine
+            y={avg}
+            stroke="var(--muted-foreground)"
+            strokeDasharray="4 3"
+            strokeOpacity={0.5}
+            label={{
+              value: `avg ${avg.toFixed(1)}`,
+              position: "right",
+              fontSize: 9,
+              fill: "var(--muted-foreground)",
+            }}
+          />
           <Line
             type="monotone"
             dataKey="score"
             stroke="var(--primary)"
             strokeWidth={2}
-            dot={{ r: 2.5, fill: "var(--primary)" }}
+            dot={(props: Record<string, unknown>) => {
+              const cx = props.cx as number | undefined;
+              const cy = props.cy as number | undefined;
+              const index = props.index as number;
+              const payload = props.payload as { score: number };
+              if (cx == null || cy == null) return <g key={index} />;
+              const isMin = index === minIdx && minScore !== maxScore;
+              const isMax = index === maxIdx && minScore !== maxScore;
+              if (isMin || isMax) {
+                return (
+                  <g key={index}>
+                    <circle cx={cx} cy={cy} r={3.5} fill={isMax ? "#22c55e" : "#ef4444"} stroke="white" strokeWidth={1.5} />
+                    <text x={cx} y={cy - 8} textAnchor="middle" fontSize={9} fontWeight={600} fill={isMax ? "#22c55e" : "#ef4444"}>
+                      {round1(payload.score).toFixed(1)}
+                    </text>
+                  </g>
+                );
+              }
+              return <circle key={index} cx={cx} cy={cy} r={2} fill="var(--primary)" />;
+            }}
             activeDot={{ r: 4 }}
           />
         </LineChart>

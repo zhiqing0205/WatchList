@@ -41,6 +41,7 @@ import {
   importMediaByTmdbId,
 } from "@/app/admin/_actions/media";
 import type { MediaItem, Tag, TvProgress, MovieProgress } from "@/db/schema";
+import { STATUS_VALUES, STATUS_LABELS } from "@/lib/status";
 
 interface CastMember {
   id: number;
@@ -378,12 +379,9 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="airing">热映中</SelectItem>
-                      <SelectItem value="watching">在看</SelectItem>
-                      <SelectItem value="completed">已看</SelectItem>
-                      <SelectItem value="planned">想看</SelectItem>
-                      <SelectItem value="on_hold">搁置</SelectItem>
-                      <SelectItem value="dropped">弃剧</SelectItem>
+                      {STATUS_VALUES.map((v) => (
+                        <SelectItem key={v} value={v}>{STATUS_LABELS[v]}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

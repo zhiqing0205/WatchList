@@ -9,24 +9,7 @@ import { computeTvWatchedInfo } from "@/lib/progress";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight, Star, Play } from "lucide-react";
 import type { MediaItem } from "@/db/schema";
-
-const statusLabels: Record<string, string> = {
-  airing: "热映中",
-  watching: "在看",
-  completed: "已看",
-  planned: "想看",
-  dropped: "弃剧",
-  on_hold: "搁置",
-};
-
-const statusColors: Record<string, string> = {
-  airing: "bg-orange-500",
-  watching: "bg-blue-500",
-  completed: "bg-green-500",
-  planned: "bg-yellow-500",
-  dropped: "bg-red-500",
-  on_hold: "bg-gray-500",
-};
+import { STATUS_LABELS, STATUS_BADGE_COLORS } from "@/lib/status";
 
 interface TvProgressInfo {
   currentSeason: number | null;
@@ -245,9 +228,9 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
         <div className="absolute left-2 top-2 transition-transform duration-300 group-hover:-translate-y-0.5">
           <Badge
             variant="secondary"
-            className={`${statusColors[item.status]} text-white border-0 text-[10px] px-1.5 py-0 shadow-md`}
+            className={`${STATUS_BADGE_COLORS[item.status as keyof typeof STATUS_BADGE_COLORS]} text-white border-0 text-[10px] px-1.5 py-0 shadow-md`}
           >
-            {statusLabels[item.status]}
+            {STATUS_LABELS[item.status as keyof typeof STATUS_LABELS]}
           </Badge>
         </div>
 
