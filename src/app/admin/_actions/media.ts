@@ -640,6 +640,15 @@ export async function batchDelete(ids: number[]) {
   revalidateAll();
 }
 
+export async function batchSetVisibility(ids: number[], visible: boolean) {
+  await ensureMigrated();
+  for (const id of ids) {
+    await db.update(mediaItems).set({ isVisible: visible }).where(eq(mediaItems.id, id));
+  }
+  await writeSystemLog("info", "batch_visibility", `批量${visible ? "显示" : "隐藏"} ${ids.length} 个条目`, { ids, visible });
+  revalidateAll();
+}
+
 export async function refetchMediaMetadata(id: number, options?: { silent?: boolean }) {
   await ensureMigrated();
   const { getMediaDetails } = await import("@/lib/tmdb");

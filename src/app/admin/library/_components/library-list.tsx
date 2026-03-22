@@ -28,12 +28,15 @@ import {
   Star,
   Tv,
   Clapperboard,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   batchMarkCompleted,
   batchDelete,
   batchRefetchMetadata,
+  batchSetVisibility,
   getMediaItemsWithProgress,
   refreshAllMetadata,
 } from "@/app/admin/_actions/media";
@@ -349,6 +352,50 @@ export function LibraryList({
               <Trash2 className="h-3.5 w-3.5" />
               删除
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              className="gap-1.5"
+              onClick={async () => {
+                setGlobalLoading(true);
+                try {
+                  await batchSetVisibility(Array.from(selected), true);
+                  toast.success(`已设置 ${selected.size} 个条目为前台显示`);
+                  setSelected(new Set());
+                  router.refresh();
+                } catch {
+                  toast.error("操作失败");
+                } finally {
+                  setGlobalLoading(false);
+                }
+              }}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              显示
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              className="gap-1.5"
+              onClick={async () => {
+                setGlobalLoading(true);
+                try {
+                  await batchSetVisibility(Array.from(selected), false);
+                  toast.success(`已设置 ${selected.size} 个条目为前台隐藏`);
+                  setSelected(new Set());
+                  router.refresh();
+                } catch {
+                  toast.error("操作失败");
+                } finally {
+                  setGlobalLoading(false);
+                }
+              }}
+            >
+              <EyeOff className="h-3.5 w-3.5" />
+              隐藏
+            </Button>
             <div className="ml-auto flex items-center gap-2">
               <Button size="sm" variant="ghost" onClick={toggleAll}>
                 {selected.size === items.length ? "取消全选" : "全选"}
@@ -373,7 +420,7 @@ export function LibraryList({
               selected.has(item.id)
                 ? "border-primary bg-primary/5"
                 : "hover:bg-accent/50"
-            }`}
+            } ${!item.isVisible ? "opacity-50" : ""}`}
           >
             {/* Checkbox */}
             <Checkbox
