@@ -20,6 +20,7 @@ import {
   updateMovieProgress,
   updateTvProgress,
   markTvCompleted,
+  rewatchTv,
   updateMediaItem,
 } from "@/app/admin/_actions/media";
 
@@ -171,7 +172,8 @@ export function TvProgressControl({
     // Optimistic update
     const next = computeNextEpisode(localProgress);
     setLocalProgress({ ...localProgress, ...next });
-    if (localStatus === "planned") setLocalStatus("watching");
+    // Auto-transition: any non-airing status with progress → watching
+    if (localStatus !== "airing" && localStatus !== "watching") setLocalStatus("watching");
     triggerFlash();
 
     try {
@@ -188,7 +190,10 @@ export function TvProgressControl({
   const handleSetProgress = async (season: number, episode: number) => {
     // Optimistic update
     setLocalProgress({ ...localProgress, currentSeason: season, currentEpisode: episode });
-    if (localStatus === "planned" && episode > 0) setLocalStatus("watching");
+    if (localStatus !== "airing") {
+      if (episode > 0) setLocalStatus("watching");
+      else if (season === 1) setLocalStatus("planned");
+    }
     setShowPicker(false);
     setViewingSeason(null);
     triggerFlash();
@@ -221,13 +226,12 @@ export function TvProgressControl({
   };
 
   const handleRewatch = async () => {
-    // Optimistic update
-    setLocalProgress({ ...localProgress, currentSeason: 1, currentEpisode: 0 });
+    // Optimistic update — S01E01 + watching
+    setLocalProgress({ ...localProgress, currentSeason: 1, currentEpisode: 1 });
     setLocalStatus("watching");
 
     try {
-      await updateTvProgress(mediaItemId, { currentSeason: 1, currentEpisode: 0 });
-      await updateMediaItem(mediaItemId, { status: "watching" });
+      await rewatchTv(mediaItemId);
       router.refresh();
     } catch {
       setLocalProgress(progress);
@@ -239,6 +243,8 @@ export function TvProgressControl({
   const handleReset = async () => {
     // Optimistic update
     setLocalProgress({ ...localProgress, currentSeason: 1, currentEpisode: 0 });
+    if (localStatus !== "airing") setLocalStatus("planned");
+    setShowPicker(false);
 
     try {
       await updateTvProgress(mediaItemId, { currentSeason: 1, currentEpisode: 0 });
@@ -313,35 +319,6 @@ export function TvProgressControl({
             下一集
           </Button>
         )}
-
-        {/* Mark completed button */}
-        {!isCompleted && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-6 gap-1 px-2 text-[11px]"
-            onClick={handleMarkCompleted}
-            disabled={loading}
-          >
-            <CheckCircle className="h-3 w-3" />
-            看完
-          </Button>
-        )}
-
-        {/* Reset progress button */}
-        {hasProgress && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 gap-1 px-1.5 text-[10px] text-muted-foreground hover:text-destructive"
-            onClick={handleReset}
-            disabled={loading}
-            title="进度归零"
-          >
-            <RotateCcw className="h-3 w-3" />
-            归零
-          </Button>
-        )}
       </div>
 
       {/* Expandable progress picker */}
@@ -406,12 +383,32 @@ export function TvProgressControl({
             </div>
           )}
 
-          {/* Summary */}
+          {/* Summary + actions */}
           <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
             <span>
               已看 {watchedEps}/{totalEps} 集
             </span>
             <span>{progressPercent}%</span>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between border-t pt-1.5">
+            <button
+              onClick={handleMarkCompleted}
+              disabled={loading}
+              className="text-[10px] text-primary hover:underline disabled:opacity-50"
+            >
+              <CheckCircle className="mr-0.5 inline h-3 w-3" />
+              标记全部看完
+            </button>
+            {hasProgress && (
+              <button
+                onClick={handleReset}
+                disabled={loading}
+                className="text-[10px] text-muted-foreground hover:text-destructive hover:underline disabled:opacity-50"
+              >
+                <RotateCcw className="mr-0.5 inline h-3 w-3" />
+                进度归零
+              </button>
+            )}
           </div>
         </div>
       )}

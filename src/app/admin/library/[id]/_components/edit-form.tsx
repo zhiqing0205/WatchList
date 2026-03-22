@@ -196,14 +196,7 @@ export function MediaEditForm({ item, allTags: initialTags, cast, ratingHistory 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateMediaItem(item.id, {
-        status: status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing",
-        rating: rating ? Number(rating) : null,
-        notes: notes || null,
-        playUrl: playUrl || null,
-        isVisible,
-      });
-
+      // 1. Update progress first (auto-transitions may change status)
       if (item.mediaType === "tv" && tvProg) {
         await updateTvProgress(item.id, {
           currentSeason: Number(currentSeason),
@@ -214,6 +207,15 @@ export function MediaEditForm({ item, allTags: initialTags, cast, ratingHistory 
       if (item.mediaType === "movie") {
         await updateMovieProgress(item.id, watched);
       }
+
+      // 2. Then update status and other fields — user's explicit choice wins
+      await updateMediaItem(item.id, {
+        status: status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing",
+        rating: rating ? Number(rating) : null,
+        notes: notes || null,
+        playUrl: playUrl || null,
+        isVisible,
+      });
 
       await setMediaTags(item.id, selectedTags);
 

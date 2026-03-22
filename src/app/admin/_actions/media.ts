@@ -5,6 +5,7 @@ import { mediaItems, tvProgress, movieProgress, mediaTags, tags, progressHistory
 import { eq, desc, asc, sql, and, like, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { TmdbMediaDetails } from "@/lib/tmdb";
+import { getLastEpisodeFromDetails } from "@/lib/progress";
 
 // Helper: build ORDER BY clause from sort parameters
 function buildSortOrder(sortField?: string, sortDir?: string) {
@@ -414,6 +415,43 @@ export async function updateMediaItem(
   if (old && data.status && data.status !== old.status) {
     await recordHistory(id, "status_changed", { from: old.status, to: data.status });
     await writeSystemLog("info", "media_edited", `「${old.title}」状态变更: ${old.status} → ${data.status}`, { id, field: "status", from: old.status, to: data.status });
+
+    // Reverse sync: status change → progress update
+    if (old.mediaType === "tv") {
+      if (data.status === "completed") {
+        const [prog] = await db.select().from(tvProgress).where(eq(tvProgress.mediaItemId, id)).limit(1);
+        if (prog) {
+          const lastEp = getLastEpisodeFromDetails(prog.seasonDetails);
+          if (lastEp.episode > 0) {
+            await db.update(tvProgress).set({
+              currentSeason: lastEp.season,
+              currentEpisode: lastEp.episode,
+              updatedAt: sql`datetime('now')`,
+            }).where(eq(tvProgress.mediaItemId, id));
+          }
+        }
+      } else if (data.status === "planned") {
+        await db.update(tvProgress).set({
+          currentSeason: 1,
+          currentEpisode: 0,
+          updatedAt: sql`datetime('now')`,
+        }).where(eq(tvProgress.mediaItemId, id));
+      }
+    } else if (old.mediaType === "movie") {
+      if (data.status === "completed") {
+        await db.update(movieProgress).set({
+          watched: true,
+          watchedAt: sql`datetime('now')`,
+          updatedAt: sql`datetime('now')`,
+        }).where(eq(movieProgress.mediaItemId, id));
+      } else if (data.status === "planned") {
+        await db.update(movieProgress).set({
+          watched: false,
+          watchedAt: null,
+          updatedAt: sql`datetime('now')`,
+        }).where(eq(movieProgress.mediaItemId, id));
+      }
+    }
   }
   if (old && data.rating !== undefined && data.rating !== old.rating) {
     await recordHistory(id, "rating_changed", { from: old.rating, to: data.rating });
@@ -421,6 +459,30 @@ export async function updateMediaItem(
   }
 
   revalidateAll(id);
+}
+
+/**
+ * Infer the correct status from TV progress changes.
+ * Returns new status string, or null if no change needed.
+ * Core principle: never override "airing" — it's an external status from TMDB.
+ */
+function resolveStatusFromTvProgress(
+  currentStatus: string,
+  season: number,
+  episode: number,
+  seasonDetailsJson: string | null
+): "watching" | "completed" | "planned" | null {
+  if (currentStatus === "airing") return null;
+
+  const lastEp = getLastEpisodeFromDetails(seasonDetailsJson);
+  const isAtEnd = lastEp.episode > 0 && season === lastEp.season && episode >= lastEp.episode;
+  const isAtStart = season === 1 && episode === 0;
+
+  if (isAtEnd) return currentStatus === "completed" ? null : "completed";
+  if (isAtStart && (currentStatus === "watching" || currentStatus === "completed")) return "planned";
+  if (episode > 0 && ["planned", "on_hold", "dropped", "completed"].includes(currentStatus)) return "watching";
+
+  return null;
 }
 
 export async function updateTvProgress(
@@ -441,19 +503,17 @@ export async function updateTvProgress(
     })
     .where(eq(tvProgress.mediaItemId, mediaItemId));
 
-  // Auto-update status
-  if (data.currentEpisode > 0) {
-    const [item] = await db.select().from(mediaItems).where(eq(mediaItems.id, mediaItemId)).limit(1);
-    if (item && item.status === "planned") {
-      await db.update(mediaItems).set({ status: "watching", updatedAt: sql`datetime('now')` }).where(eq(mediaItems.id, mediaItemId));
-      await recordHistory(mediaItemId, "status_changed", { from: "planned", to: "watching" });
+  // Auto-update status based on new progress
+  const [item] = await db.select().from(mediaItems).where(eq(mediaItems.id, mediaItemId)).limit(1);
+  if (item) {
+    const newStatus = resolveStatusFromTvProgress(item.status, data.currentSeason, data.currentEpisode, old?.seasonDetails ?? null);
+    if (newStatus) {
+      await db.update(mediaItems).set({ status: newStatus, updatedAt: sql`datetime('now')` }).where(eq(mediaItems.id, mediaItemId));
+      await recordHistory(mediaItemId, "status_changed", { from: item.status, to: newStatus });
+    } else {
+      await db.update(mediaItems).set({ updatedAt: sql`datetime('now')` }).where(eq(mediaItems.id, mediaItemId));
     }
   }
-
-  await db
-    .update(mediaItems)
-    .set({ updatedAt: sql`datetime('now')` })
-    .where(eq(mediaItems.id, mediaItemId));
 
   await recordHistory(mediaItemId, "episode_watched", {
     from: old ? `S${old.currentSeason}E${old.currentEpisode}` : null,
@@ -491,15 +551,9 @@ export async function advanceEpisode(mediaItemId: number) {
     if (nextSeason) {
       newSeason = newSeason + 1;
       newEpisode = 1;
-    }
-    // If no next season, stay at last episode and auto-complete
-    else {
+    } else {
+      // No next season — clamp to last episode; updateTvProgress will auto-complete
       newEpisode = currentSeasonInfo.episode_count;
-      await db
-        .update(mediaItems)
-        .set({ status: "completed", updatedAt: sql`datetime('now')` })
-        .where(eq(mediaItems.id, mediaItemId));
-      await recordHistory(mediaItemId, "status_changed", { from: "watching", to: "completed" });
     }
   }
 
@@ -507,40 +561,34 @@ export async function advanceEpisode(mediaItemId: number) {
 }
 
 // Mark a TV show as fully watched: set progress to last episode of last season + completed
+// This is an explicit user action, so it overrides even "airing" status.
 export async function markTvCompleted(mediaItemId: number) {
   await ensureMigrated();
   const [prog] = await db.select().from(tvProgress).where(eq(tvProgress.mediaItemId, mediaItemId)).limit(1);
   if (!prog) return;
 
-  const seasonDetails: { season_number: number; episode_count: number }[] =
-    prog.seasonDetails ? JSON.parse(prog.seasonDetails) : [];
-  const seasons = seasonDetails
-    .filter((s) => s.season_number > 0)
-    .sort((a, b) => a.season_number - b.season_number);
-
-  if (seasons.length > 0) {
-    const lastSeason = seasons[seasons.length - 1];
+  const lastEp = getLastEpisodeFromDetails(prog.seasonDetails);
+  if (lastEp.episode > 0) {
     await updateTvProgress(mediaItemId, {
-      currentSeason: lastSeason.season_number,
-      currentEpisode: lastSeason.episode_count,
+      currentSeason: lastEp.season,
+      currentEpisode: lastEp.episode,
     });
   }
 
+  // Force completed even for airing (explicit user action)
   const [item] = await db.select().from(mediaItems).where(eq(mediaItems.id, mediaItemId)).limit(1);
-  const oldStatus = item?.status;
-
-  await db
-    .update(mediaItems)
-    .set({ status: "completed", updatedAt: sql`datetime('now')` })
-    .where(eq(mediaItems.id, mediaItemId));
-
-  if (oldStatus && oldStatus !== "completed") {
-    await recordHistory(mediaItemId, "status_changed", { from: oldStatus, to: "completed" });
+  if (item && item.status !== "completed") {
+    await db.update(mediaItems).set({ status: "completed", updatedAt: sql`datetime('now')` }).where(eq(mediaItems.id, mediaItemId));
+    await recordHistory(mediaItemId, "status_changed", { from: item.status, to: "completed" });
   }
 
   await writeSystemLog("info", "progress_updated", `「${item?.title || mediaItemId}」标记为全部看完`, { id: mediaItemId });
-
   revalidateAll(mediaItemId);
+}
+
+// Rewatch a TV show: set progress to S01E01 and status to watching (atomic single call)
+export async function rewatchTv(mediaItemId: number) {
+  await updateTvProgress(mediaItemId, { currentSeason: 1, currentEpisode: 1 });
 }
 
 export async function updateMovieProgress(
@@ -560,19 +608,17 @@ export async function updateMovieProgress(
     })
     .where(eq(movieProgress.mediaItemId, mediaItemId));
 
-  await db
-    .update(mediaItems)
-    .set({
-      status: watched ? "completed" : "planned",
-      updatedAt: sql`datetime('now')`,
-    })
-    .where(eq(mediaItems.id, mediaItemId));
+  // Auto-update status, but never override "airing"
+  const [item] = await db.select().from(mediaItems).where(eq(mediaItems.id, mediaItemId)).limit(1);
+  if (item && item.status !== "airing") {
+    const newStatus = watched ? "completed" : "planned";
+    if (item.status !== newStatus) {
+      await db.update(mediaItems).set({ status: newStatus, updatedAt: sql`datetime('now')` }).where(eq(mediaItems.id, mediaItemId));
+      await recordHistory(mediaItemId, "status_changed", { from: item.status, to: newStatus });
+    }
+  }
 
   await recordHistory(mediaItemId, "movie_watched", { watched, from: old?.watched });
-  await recordHistory(mediaItemId, "status_changed", {
-    from: watched ? "planned" : "completed",
-    to: watched ? "completed" : "planned",
-  });
 
   const [movieItem] = await db.select({ title: mediaItems.title }).from(mediaItems).where(eq(mediaItems.id, mediaItemId)).limit(1);
   await writeSystemLog("info", "progress_updated", `「${movieItem?.title || mediaItemId}」标记为${watched ? "已观看" : "未观看"}`, { id: mediaItemId, watched });

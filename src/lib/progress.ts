@@ -55,3 +55,21 @@ export function computeTvWatchedInfo(
     isFullyWatched,
   };
 }
+
+/**
+ * Extract the last season number and its episode count from seasonDetails JSON.
+ * Returns {season: 1, episode: 0} if no valid data.
+ */
+export function getLastEpisodeFromDetails(
+  seasonDetailsJson: string | null
+): { season: number; episode: number } {
+  if (!seasonDetailsJson) return { season: 1, episode: 0 };
+  const details: { season_number: number; episode_count: number }[] =
+    JSON.parse(seasonDetailsJson);
+  const seasons = details
+    .filter((s) => s.season_number > 0)
+    .sort((a, b) => a.season_number - b.season_number);
+  if (seasons.length === 0) return { season: 1, episode: 0 };
+  const last = seasons[seasons.length - 1];
+  return { season: last.season_number, episode: last.episode_count };
+}
