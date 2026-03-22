@@ -88,7 +88,7 @@ export function RatingTrendChart({
   return (
     <div className={className}>
       <ResponsiveContainer width="100%" height={120}>
-        <LineChart data={chartData} margin={{ top: 14, right: 28, left: -10, bottom: 0 }}>
+        <LineChart data={chartData} margin={{ top: 14, right: 10, left: -10, bottom: 0 }}>
           <XAxis
             dataKey="date"
             tick={{ fontSize: 10, className: "fill-muted-foreground" }}
@@ -121,7 +121,7 @@ export function RatingTrendChart({
             strokeOpacity={0.5}
             label={{
               value: `avg ${avg.toFixed(1)}`,
-              position: "right",
+              position: "insideTopRight",
               fontSize: 9,
               fill: "var(--muted-foreground)",
             }}

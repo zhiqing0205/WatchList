@@ -34,10 +34,9 @@ export default async function EditMediaPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">编辑: {item.title}</h1>
-      <div className="rounded-lg border bg-card p-4">
-        <p className="mb-2 text-sm font-medium text-muted-foreground">TMDB 评分趋势</p>
-        <RatingTrendChart data={ratingHistoryData} currentRating={item.voteAverage} className="max-w-md" />
+      <div>
+        <h1 className="text-2xl font-bold">编辑: {item.title}</h1>
+        <RatingTrendChart data={ratingHistoryData} currentRating={item.voteAverage} className="mt-3 max-w-md" />
       </div>
       <MediaEditForm item={item} allTags={allTags} cast={cast} />
     </div>

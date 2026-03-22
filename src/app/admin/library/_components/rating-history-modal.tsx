@@ -114,7 +114,7 @@ export function RatingHistoryModal({
             {data.length >= 2 && (
               <div className="rounded-lg border bg-card p-3">
                 <ResponsiveContainer width="100%" height={180}>
-                  <LineChart data={chartData} margin={{ top: 14, right: 32, left: -10, bottom: 0 }}>
+                  <LineChart data={chartData} margin={{ top: 14, right: 10, left: -10, bottom: 0 }}>
                     <XAxis
                       dataKey="date"
                       tick={{ fontSize: 10, className: "fill-muted-foreground" }}
@@ -150,7 +150,7 @@ export function RatingHistoryModal({
                       strokeOpacity={0.5}
                       label={{
                         value: `avg ${avg.toFixed(1)}`,
-                        position: "right",
+                        position: "insideTopRight",
                         fontSize: 9,
                         fill: "var(--muted-foreground)",
                       }}
