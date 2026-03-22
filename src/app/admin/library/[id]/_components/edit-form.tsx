@@ -43,6 +43,8 @@ import {
 import type { MediaItem, Tag, TvProgress, MovieProgress } from "@/db/schema";
 import { STATUS_VALUES, STATUS_LABELS } from "@/lib/status";
 
+import { RatingTrendChart } from "@/components/rating-trend-chart";
+
 interface CastMember {
   id: number;
   name: string;
@@ -69,9 +71,10 @@ interface EditFormProps {
   };
   allTags: Tag[];
   cast: CastMember[];
+  ratingHistory: { voteAverage: number; recordedAt: string | null }[];
 }
 
-export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProps) {
+export function MediaEditForm({ item, allTags: initialTags, cast, ratingHistory }: EditFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
@@ -309,6 +312,7 @@ export function MediaEditForm({ item, allTags: initialTags, cast }: EditFormProp
                   {item.mediaType === "tv" ? "剧集" : "电影"}
                   {item.releaseDate && ` · ${item.releaseDate}`}
                 </p>
+                <RatingTrendChart data={ratingHistory} currentRating={item.voteAverage} className="mt-3" />
               </div>
 
               {/* Synopsis */}

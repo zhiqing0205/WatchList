@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { getMediaItemById, getAllTags, getRatingHistory } from "@/app/admin/_actions/media";
 import { getMediaDetails } from "@/lib/tmdb";
 import { MediaEditForm } from "./_components/edit-form";
-import { RatingTrendChart } from "@/components/rating-trend-chart";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -34,11 +33,8 @@ export default async function EditMediaPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">编辑: {item.title}</h1>
-        <RatingTrendChart data={ratingHistoryData} currentRating={item.voteAverage} className="mt-3 max-w-md" />
-      </div>
-      <MediaEditForm item={item} allTags={allTags} cast={cast} />
+      <h1 className="text-2xl font-bold">编辑: {item.title}</h1>
+      <MediaEditForm item={item} allTags={allTags} cast={cast} ratingHistory={ratingHistoryData} />
     </div>
   );
 }
