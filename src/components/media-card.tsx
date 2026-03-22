@@ -72,7 +72,7 @@ type AnimPhase = "idle" | "zooming" | "sweep-ready" | "sweeping";
 
 export function MediaCard({ item }: { item: MediaCardItem }) {
   const watchPercent = computeWatchPercent(item);
-  const isFullColor = item.status === "airing" || item.status === "watching";
+  const isFullColor = item.status === "airing" || item.status === "planned";
   const tvStats =
     item.mediaType === "tv" ? getTvStats(item.tvProgress) : null;
   const ratingValue =
