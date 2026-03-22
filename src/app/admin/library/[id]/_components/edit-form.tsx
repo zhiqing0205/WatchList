@@ -304,7 +304,12 @@ export function MediaEditForm({ item, allTags: initialTags, cast, ratingHistory 
                 />
               </div>
               <div className="mt-4 space-y-1 text-center">
-                <h2 className="font-semibold">{item.title}</h2>
+                <h2 className="font-semibold">
+                  {item.title}
+                  {item.voteAverage != null && item.voteAverage > 0 && (
+                    <span className="ml-2 text-sm font-normal text-yellow-500">{item.voteAverage.toFixed(1)}</span>
+                  )}
+                </h2>
                 {item.originalTitle && item.originalTitle !== item.title && (
                   <p className="text-sm text-muted-foreground">{item.originalTitle}</p>
                 )}
