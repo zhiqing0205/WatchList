@@ -27,20 +27,20 @@ export default async function LibraryPage({ searchParams }: Props) {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">影视管理</h1>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl font-bold sm:text-2xl">影视管理</h1>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Button asChild variant="outline" size="sm" className="sm:size-default">
             <Link href="/admin/library/tags">
-              <Tags className="mr-2 h-4 w-4" />
-              标签管理
+              <Tags className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">标签管理</span>
             </Link>
           </Button>
-          <Button asChild>
+          <Button asChild size="sm" className="sm:size-default">
             <Link href="/admin/search">
-              <Plus className="mr-2 h-4 w-4" />
-              添加影视
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">添加影视</span>
             </Link>
           </Button>
         </div>
@@ -52,7 +52,7 @@ export default async function LibraryPage({ searchParams }: Props) {
       </Suspense>
 
       {/* Filter links */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5 sm:gap-2">
         <Link href="/admin/library">
           <Badge variant={!params.status && !params.type ? "default" : "outline"}>全部</Badge>
         </Link>

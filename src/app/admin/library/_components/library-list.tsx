@@ -318,7 +318,7 @@ export function LibraryList({
 
         {/* Batch action bar */}
         {selected.size > 0 && (
-          <div className="sticky top-0 z-20 flex items-center gap-3 rounded-lg border bg-card p-3 shadow-md">
+          <div className="sticky top-0 z-20 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3 shadow-md sm:gap-3">
             <span className="text-sm font-medium">
               已选 {selected.size} 项
             </span>
@@ -396,7 +396,7 @@ export function LibraryList({
               <EyeOff className="h-3.5 w-3.5" />
               隐藏
             </Button>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-1 sm:gap-2">
               <Button size="sm" variant="ghost" onClick={toggleAll}>
                 {selected.size === items.length ? "取消全选" : "全选"}
               </Button>
@@ -416,7 +416,7 @@ export function LibraryList({
         {items.map((item) => (
           <div
             key={item.id}
-            className={`relative flex items-center gap-3 rounded-lg border p-3 transition-colors ${
+            className={`relative flex flex-wrap items-center gap-2 rounded-lg border p-2.5 transition-colors sm:flex-nowrap sm:gap-3 sm:p-3 ${
               selected.has(item.id)
                 ? "border-primary bg-primary/5"
                 : "hover:bg-accent/50"
@@ -430,7 +430,7 @@ export function LibraryList({
             />
 
             {/* Poster */}
-            <div className="relative h-16 w-12 flex-shrink-0 overflow-hidden rounded">
+            <div className="relative h-14 w-10 flex-shrink-0 overflow-hidden rounded sm:h-16 sm:w-12">
               <Image
                 src={getImageUrl(item.posterPath, "w92")}
                 alt={item.title}
@@ -442,13 +442,13 @@ export function LibraryList({
             {/* Info */}
             <div className="flex-1 min-w-0">
               {/* Row 1: type icon + title + rating + status */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
                 {item.mediaType === "tv" ? (
                   <Tv className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                 ) : (
                   <Clapperboard className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                 )}
-                <h3 className="truncate font-medium">{item.title}</h3>
+                <h3 className="truncate text-sm font-medium sm:text-base">{item.title}</h3>
                 {item.voteAverage != null && item.voteAverage > 0 && (
                   <button
                     onClick={() => {
@@ -467,7 +467,7 @@ export function LibraryList({
                   </button>
                 )}
                 {item.rating && (
-                  <span className="flex-shrink-0 text-xs text-muted-foreground">
+                  <span className="hidden flex-shrink-0 text-xs text-muted-foreground sm:inline">
                     我的: {item.rating}/10
                   </span>
                 )}
@@ -508,7 +508,7 @@ export function LibraryList({
             </div>
 
             {/* Inline progress controls */}
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 max-sm:ml-auto">
               {item.mediaType === "tv" && (
                 <TvProgressControl
                   mediaItemId={item.id}

@@ -60,7 +60,7 @@ export default async function AdminDashboard() {
       <h1 className="text-2xl font-bold">仪表盘</h1>
 
       {/* Top stat cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 sm:gap-4 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">近七日入库</CardTitle>
