@@ -246,7 +246,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
           <div className="flex items-end justify-between">
             <span className="text-[11px] text-white/90 font-medium">
               {item.mediaType === "tv" ? "剧集" : "电影"}
-              {item.releaseDate && ` · ${item.releaseDate.substring(0, 4)}`}
+              {item.releaseDate ? ` · ${item.releaseDate.substring(0, 4)}` : " · 时间未定"}
               {countryName && ` · ${countryName}`}
             </span>
             {tvStats && tvStats.totalEpisodes > 0 && (
@@ -337,12 +337,8 @@ function PreviewPopup({
       {/* Meta */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
         <span>{item.mediaType === "tv" ? "剧集" : "电影"}</span>
-        {item.releaseDate && (
-          <>
-            <span className="text-muted-foreground/40">·</span>
-            <span>{item.releaseDate}</span>
-          </>
-        )}
+        <span className="text-muted-foreground/40">·</span>
+        <span>{item.releaseDate || "播出时间未定"}</span>
         {countryName && (
           <>
             <span className="text-muted-foreground/40">·</span>

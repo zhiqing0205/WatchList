@@ -317,7 +317,7 @@ export function MediaEditForm({ item, allTags: initialTags, cast, ratingHistory 
                 )}
                 <p className="text-sm text-muted-foreground">
                   {item.mediaType === "tv" ? "剧集" : "电影"}
-                  {item.releaseDate && ` · ${item.releaseDate}`}
+                  {` · ${item.releaseDate || "播出时间未定"}`}
                 </p>
                 <RatingTrendChart data={ratingHistory} currentRating={item.voteAverage} className="mt-3" />
               </div>

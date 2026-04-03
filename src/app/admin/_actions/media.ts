@@ -23,7 +23,9 @@ function buildSortOrder(sortField?: string, sortDir?: string) {
 }
 
 // Determine if a TMDB item is currently airing/playing
+// Items with no release date should not be set to airing
 function isTmdbAiring(mediaType: string, tmdbStatus?: string, releaseDate?: string): boolean {
+  if (!releaseDate) return false;
   if (mediaType === "tv") {
     return tmdbStatus === "Returning Series";
   }

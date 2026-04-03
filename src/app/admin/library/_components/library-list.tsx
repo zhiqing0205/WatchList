@@ -476,7 +476,7 @@ export function LibraryList({
               {/* Row 2: date + season info + visibility */}
               <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span>
-                  {item.releaseDate || ""}
+                  {item.releaseDate || "播出时间未定"}
                   {item.mediaType === "tv" && (() => {
                     const stats = getTvStats(item.tvProgress);
                     if (stats && stats.totalEpisodes > 0) {

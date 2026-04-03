@@ -149,11 +149,9 @@ export default async function MediaDetailPage({ params }: Props) {
                   >
                     {statusLabels[item.status]}
                   </Badge>
-                  {item.releaseDate && (
-                    <span className="text-sm text-white/60">
-                      {item.releaseDate}
-                    </span>
-                  )}
+                  <span className="text-sm text-white/60">
+                    {item.releaseDate || "播出时间未定"}
+                  </span>
                   {item.originCountry && (
                     <span className="text-sm text-white/60">
                       {getCountryName(item.originCountry)}
