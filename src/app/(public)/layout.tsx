@@ -20,9 +20,9 @@ export default function PublicLayout({
         <div className="container relative mx-auto flex h-14 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <AppIcon className="h-5 w-5" />
-            追剧清单
+            <span className="hidden xs:inline">追剧清单</span>
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <nav className="hidden items-center gap-4 text-sm sm:flex">
               <Link
                 href="/"
@@ -52,6 +52,27 @@ export default function PublicLayout({
             </Button>
           </div>
         </div>
+        {/* Mobile nav bar */}
+        <nav className="relative flex items-center justify-center gap-6 border-t border-border/40 py-2 text-sm sm:hidden">
+          <Link
+            href="/"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            全部
+          </Link>
+          <Link
+            href="/?type=tv"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            剧集
+          </Link>
+          <Link
+            href="/?type=movie"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            电影
+          </Link>
+        </nav>
       </header>
       <main className="flex-1">{children}</main>
       <footer className="relative z-10">
