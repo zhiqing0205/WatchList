@@ -416,7 +416,7 @@ export function LibraryList({
         {items.map((item) => (
           <div
             key={item.id}
-            className={`relative flex flex-wrap items-center gap-2 rounded-lg border p-2.5 transition-colors sm:flex-nowrap sm:gap-3 sm:p-3 ${
+            className={`relative flex items-center gap-2 rounded-lg border p-2 transition-colors sm:gap-3 sm:p-3 ${
               selected.has(item.id)
                 ? "border-primary bg-primary/5"
                 : "hover:bg-accent/50"
@@ -441,14 +441,9 @@ export function LibraryList({
 
             {/* Info */}
             <div className="flex-1 min-w-0">
-              {/* Row 1: type icon + title + rating + status */}
-              <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
-                {item.mediaType === "tv" ? (
-                  <Tv className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                ) : (
-                  <Clapperboard className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                )}
-                <h3 className="truncate text-sm font-medium sm:text-base">{item.title}</h3>
+              {/* Row 1: title + rating + status */}
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <h3 className="truncate text-sm font-medium">{item.title}</h3>
                 {item.voteAverage != null && item.voteAverage > 0 && (
                   <button
                     onClick={() => {
@@ -473,23 +468,28 @@ export function LibraryList({
                 )}
                 <StatusControl mediaItemId={item.id} status={item.status} />
               </div>
-              {/* Row 2: date + season info + visibility */}
-              <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span>
+              {/* Row 2: type + date + season info + visibility */}
+              <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                {item.mediaType === "tv" ? (
+                  <Tv className="h-3 w-3 flex-shrink-0" />
+                ) : (
+                  <Clapperboard className="h-3 w-3 flex-shrink-0" />
+                )}
+                <span className="truncate">
                   {item.releaseDate || "播出时间未定"}
                   {item.mediaType === "tv" && (() => {
                     const stats = getTvStats(item.tvProgress);
                     if (stats && stats.totalEpisodes > 0) {
-                      return ` · 共${stats.totalSeasons}季${stats.totalEpisodes}集`;
+                      return ` · ${stats.totalSeasons}季${stats.totalEpisodes}集`;
                     }
                     return "";
                   })()}
-                  {!item.isVisible ? " · 🔒 隐藏" : ""}
+                  {!item.isVisible ? " · 🔒" : ""}
                 </span>
               </div>
-              {/* Row 3: tags */}
+              {/* Row 3: tags - hidden on mobile */}
               {item.tags.length > 0 && (
-                <div className="mt-1 flex flex-wrap items-center gap-1">
+                <div className="mt-1 hidden flex-wrap items-center gap-1 sm:flex">
                   {item.tags.map((tag) => (
                     <Badge
                       key={tag.id}
@@ -507,8 +507,8 @@ export function LibraryList({
               )}
             </div>
 
-            {/* Inline progress controls */}
-            <div className="flex-shrink-0 max-sm:ml-auto">
+            {/* Inline progress controls - hidden on mobile */}
+            <div className="hidden flex-shrink-0 sm:block">
               {item.mediaType === "tv" && (
                 <TvProgressControl
                   mediaItemId={item.id}
@@ -525,7 +525,7 @@ export function LibraryList({
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex items-center gap-0.5 flex-shrink-0 sm:gap-1">
               <Button variant="ghost" size="sm" asChild>
                 <Link href={`/admin/library/${item.id}`}>
                   <Edit className="h-4 w-4" />
