@@ -1172,8 +1172,8 @@ export async function getSystemLogs(page = 1, limit = 50) {
 // Refresh all media metadata (used by cron and manual trigger)
 const MAX_RATING_HISTORY = 30;
 
-async function recordRatingSnapshot(mediaItemId: number, voteAverage: number | null) {
-  if (voteAverage == null) return;
+async function recordRatingSnapshot(mediaItemId: number, voteAverage: number | null): Promise<boolean> {
+  if (voteAverage == null) return false;
 
   // Round to 1 decimal to avoid duplicate records from tiny TMDB fluctuations
   const rounded = Math.round(voteAverage * 10) / 10;
@@ -1187,7 +1187,7 @@ async function recordRatingSnapshot(mediaItemId: number, voteAverage: number | n
     .limit(1);
 
   // Skip if rating unchanged (compare rounded values)
-  if (latest && Math.round(latest.voteAverage * 10) / 10 === rounded) return;
+  if (latest && Math.round(latest.voteAverage * 10) / 10 === rounded) return false;
 
   // Insert new snapshot with rounded value
   await db.insert(ratingHistory).values({ mediaItemId, voteAverage: rounded });
@@ -1212,9 +1212,8 @@ async function recordRatingSnapshot(mediaItemId: number, voteAverage: number | n
       );
     }
   }
-}
-
-export async function refreshAllMetadata(options?: { manual?: boolean }) {
+  return true;
+}export async function refreshAllMetadata(options?: { manual?: boolean }) {
   await ensureMigrated();
   const allItems = await db
     .select({ id: mediaItems.id, title: mediaItems.title })
@@ -1222,6 +1221,7 @@ export async function refreshAllMetadata(options?: { manual?: boolean }) {
 
   let success = 0;
   let failed = 0;
+  let newRatings = 0;
   const errors: string[] = [];
 
   const isManual = options?.manual;
@@ -1236,7 +1236,8 @@ export async function refreshAllMetadata(options?: { manual?: boolean }) {
           .from(mediaItems)
           .where(eq(mediaItems.id, item.id))
           .limit(1);
-        await recordRatingSnapshot(item.id, updated?.voteAverage ?? null);
+        const recorded = await recordRatingSnapshot(item.id, updated?.voteAverage ?? null);
+        if (recorded) newRatings++;
       }
       success++;
     } catch (e) {
@@ -1248,8 +1249,8 @@ export async function refreshAllMetadata(options?: { manual?: boolean }) {
   await writeSystemLog(
     failed > 0 ? "warn" : "info",
     isManual ? "manual_metadata_refresh" : "cron_metadata_refresh",
-    `${isManual ? "手动" : "定时"}刷新元数据完成: 成功 ${success}, 失败 ${failed}, 共 ${allItems.length}`,
-    { success, failed, total: allItems.length, errors: errors.slice(0, 10) }
+    `${isManual ? "手动" : "定时"}刷新元数据完成: 成功 ${success}, 失败 ${failed}, 共 ${allItems.length}${!isManual ? `, 新增 ${newRatings} 条评分历史` : ""}`,
+    { success, failed, total: allItems.length, newRatings: isManual ? undefined : newRatings, errors: errors.slice(0, 10) }
   );
 
   return { success, failed, total: allItems.length };
