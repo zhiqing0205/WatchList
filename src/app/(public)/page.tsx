@@ -13,6 +13,7 @@ import { StatusSection } from "@/components/status-section";
 import { SortButtons } from "@/components/sort-controls";
 import { MediaGrid } from "@/components/media-card";
 import { STATUS_LABELS, HOMEPAGE_STATUS_ORDER } from "@/lib/status";
+import { Clapperboard } from "lucide-react";
 
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -90,14 +91,28 @@ export default async function HomePage({ searchParams }: Props) {
     }
   }
 
-  const groups = await getMediaItemsGroupedByStatus({
-    mediaType,
-    visibleOnly: true,
-    limit: 15,
-    sortField: "date",
-    sortDir: "desc",
-    statusSorts,
-  });
+  const [groups, movieResult] = await Promise.all([
+    // Status groups show only TV shows to avoid movies being drowned
+    getMediaItemsGroupedByStatus({
+      mediaType: mediaType || "tv",
+      visibleOnly: true,
+      limit: 15,
+      sortField: "date",
+      sortDir: "desc",
+      statusSorts,
+    }),
+    // Movies get their own dedicated section
+    getMediaItemsWithProgress({
+      mediaType: "movie",
+      visibleOnly: true,
+      limit: 15,
+      sortField: "date",
+      sortDir: "desc",
+    }),
+  ]);
+
+  const movieItems = movieResult.items;
+  const movieTotal = movieResult.total;
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -105,7 +120,7 @@ export default async function HomePage({ searchParams }: Props) {
         <FilterBar tags={tags} hideStatus />
       </Suspense>
 
-      {groups.length === 0 ? (
+      {groups.length === 0 && movieItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
           <p className="text-lg">暂无影视内容</p>
           <p className="text-sm">稍后再来看看吧</p>
@@ -121,6 +136,27 @@ export default async function HomePage({ searchParams }: Props) {
               total={group.total}
             />
           ))}
+
+          {/* Dedicated movie section */}
+          {movieItems.length > 0 && (
+            <section>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-xl font-bold">
+                  <Clapperboard className="h-5 w-5 text-purple-400" />
+                  电影
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {movieTotal}
+                  </span>
+                </h2>
+              </div>
+              <MediaGrid
+                items={movieItems}
+                maxRows={3}
+                overflowHref="/?type=movie"
+                overflowTotal={movieTotal}
+              />
+            </section>
+          )}
         </div>
       )}
     </div>
