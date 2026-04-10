@@ -20,7 +20,7 @@ export default function PublicLayout({
         <div className="container relative mx-auto flex h-14 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <AppIcon className="h-5 w-5" />
-            <span className="hidden xs:inline">追剧清单</span>
+            <span>追剧清单</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-4">
             <nav className="hidden items-center gap-4 text-sm sm:flex">
