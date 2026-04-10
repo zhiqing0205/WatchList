@@ -8,18 +8,22 @@ import type { TmdbMediaDetails } from "@/lib/tmdb";
 import { getLastEpisodeFromDetails } from "@/lib/progress";
 
 // Helper: build ORDER BY clause from sort parameters
+// sortOrder DESC is always the primary sort (pinned items first, default 0)
 function buildSortOrder(sortField?: string, sortDir?: string) {
   const dir = sortDir === "asc" ? sql.raw("ASC") : sql.raw("DESC");
-  switch (sortField) {
-    case "rating":
-      return sql`COALESCE(${mediaItems.rating}, ${mediaItems.voteAverage}, 0) ${dir}`;
-    case "episodes":
-      return sql`(SELECT COALESCE(tp.total_seasons, 0) FROM tv_progress tp WHERE tp.media_item_id = ${mediaItems.id}) ${dir}`;
-    case "date":
-      return sql`${mediaItems.releaseDate} ${dir}`;
-    default:
-      return desc(mediaItems.updatedAt);
-  }
+  const secondary = (() => {
+    switch (sortField) {
+      case "rating":
+        return sql`COALESCE(${mediaItems.rating}, ${mediaItems.voteAverage}, 0) ${dir}`;
+      case "episodes":
+        return sql`(SELECT COALESCE(tp.total_seasons, 0) FROM tv_progress tp WHERE tp.media_item_id = ${mediaItems.id}) ${dir}`;
+      case "date":
+        return sql`${mediaItems.releaseDate} ${dir}`;
+      default:
+        return sql`${mediaItems.updatedAt} DESC`;
+    }
+  })();
+  return sql`${mediaItems.sortOrder} DESC, ${secondary}`;
 }
 
 // Determine if a TMDB item is currently airing/playing
@@ -695,6 +699,16 @@ export async function batchSetVisibility(ids: number[], visible: boolean) {
   }
   await writeSystemLog("info", "batch_visibility", `批量${visible ? "显示" : "隐藏"} ${ids.length} 个条目`, { ids, visible });
   revalidateAll();
+}
+
+export async function togglePin(id: number) {
+  await ensureMigrated();
+  const [item] = await db.select({ sortOrder: mediaItems.sortOrder }).from(mediaItems).where(eq(mediaItems.id, id)).limit(1);
+  if (!item) return;
+  const newValue = (item.sortOrder || 0) > 0 ? 0 : 1;
+  await db.update(mediaItems).set({ sortOrder: newValue }).where(eq(mediaItems.id, id));
+  revalidateAll(id);
+  return newValue > 0;
 }
 
 export async function refetchMediaMetadata(id: number, options?: { silent?: boolean }) {

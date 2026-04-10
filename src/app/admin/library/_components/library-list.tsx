@@ -30,6 +30,8 @@ import {
   Clapperboard,
   Eye,
   EyeOff,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -37,6 +39,7 @@ import {
   batchDelete,
   batchRefetchMetadata,
   batchSetVisibility,
+  togglePin,
   getMediaItemsWithProgress,
   refreshAllMetadata,
 } from "@/app/admin/_actions/media";
@@ -72,6 +75,7 @@ interface MediaItemWithProgress {
   rating: number | null;
   status: string;
   isVisible: boolean | null;
+  sortOrder: number | null;
   tvProgress: TvProgressData | null;
   movieProgress: MovieProgressData | null;
   tags: { id: number; name: string; color: string | null }[];
@@ -526,6 +530,19 @@ export function LibraryList({
 
             {/* Actions */}
             <div className="flex items-center gap-0.5 flex-shrink-0 sm:gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`h-7 w-7 p-0 ${(item.sortOrder || 0) > 0 ? "text-primary" : "text-muted-foreground"}`}
+                title={(item.sortOrder || 0) > 0 ? "取消置顶" : "置顶"}
+                onClick={async () => {
+                  const pinned = await togglePin(item.id);
+                  toast.success(pinned ? "已置顶" : "已取消置顶");
+                  router.refresh();
+                }}
+              >
+                {(item.sortOrder || 0) > 0 ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+              </Button>
               <Button variant="ghost" size="sm" asChild>
                 <Link href={`/admin/library/${item.id}`}>
                   <Edit className="h-4 w-4" />
