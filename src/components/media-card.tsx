@@ -194,7 +194,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-muted">
+      <div className={`relative aspect-[2/3] overflow-hidden rounded-lg bg-muted ${(item.sortOrder || 0) > 0 ? "ring-2 ring-primary/50" : ""}`}>
         {/* Grayscale base layer */}
         <Image
           src={getImageUrl(item.posterPath)}

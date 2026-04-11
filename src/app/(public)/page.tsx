@@ -127,35 +127,63 @@ export default async function HomePage({ searchParams }: Props) {
         </div>
       ) : (
         <div className="mt-6 space-y-10">
-          {groups.map((group) => (
-            <StatusSection
-              key={group.status}
-              status={group.status}
-              label={STATUS_LABELS[group.status as keyof typeof STATUS_LABELS] || group.status}
-              items={group.items}
-              total={group.total}
-            />
-          ))}
+          {/* Insert movie section after airing+watching, before planned */}
+          {groups.map((group, idx) => {
+            const showMovieBefore =
+              movieItems.length > 0 &&
+              (group.status === "planned" || group.status === "completed") &&
+              !groups.slice(0, idx).some((g) => g.status === "planned" || g.status === "completed");
 
-          {/* Dedicated movie section */}
-          {movieItems.length > 0 && (
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-xl font-bold">
-                  <Clapperboard className="h-5 w-5 text-purple-400" />
-                  电影
-                  <span className="text-sm font-normal text-muted-foreground">
-                    {movieTotal}
-                  </span>
-                </h2>
+            return (
+              <div key={group.status} className="space-y-10">
+                {showMovieBefore && (
+                  <section>
+                    <div className="mb-4 flex items-center justify-between">
+                      <h2 className="flex items-center gap-2 text-xl font-bold">
+                        <Clapperboard className="h-5 w-5 text-purple-400" />
+                        电影
+                        <span className="text-sm font-normal text-muted-foreground">
+                          {movieTotal}
+                        </span>
+                      </h2>
+                    </div>
+                    <MediaGrid
+                      items={movieItems}
+                      maxRows={3}
+                      overflowHref="/?type=movie"
+                      overflowTotal={movieTotal}
+                    />
+                  </section>
+                )}
+                <StatusSection
+                  status={group.status}
+                  label={STATUS_LABELS[group.status as keyof typeof STATUS_LABELS] || group.status}
+                  items={group.items}
+                  total={group.total}
+                />
               </div>
-              <MediaGrid
-                items={movieItems}
-                maxRows={3}
-                overflowHref="/?type=movie"
-                overflowTotal={movieTotal}
-              />
-            </section>
+            );
+          })}
+          {/* Fallback: show movie section at end if no planned/completed groups exist */}
+          {movieItems.length > 0 &&
+            !groups.some((g) => g.status === "planned" || g.status === "completed") && (
+              <section>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="flex items-center gap-2 text-xl font-bold">
+                    <Clapperboard className="h-5 w-5 text-purple-400" />
+                    电影
+                    <span className="text-sm font-normal text-muted-foreground">
+                      {movieTotal}
+                    </span>
+                  </h2>
+                </div>
+                <MediaGrid
+                  items={movieItems}
+                  maxRows={3}
+                  overflowHref="/?type=movie"
+                  overflowTotal={movieTotal}
+                />
+              </section>
           )}
         </div>
       )}

@@ -423,7 +423,9 @@ export function LibraryList({
             className={`relative flex items-center gap-2 rounded-lg border p-2 transition-colors sm:gap-3 sm:p-3 ${
               selected.has(item.id)
                 ? "border-primary bg-primary/5"
-                : "hover:bg-accent/50"
+                : (item.sortOrder || 0) > 0
+                  ? "border-primary/30 bg-primary/5 hover:bg-primary/10"
+                  : "hover:bg-accent/50"
             } ${!item.isVisible ? "opacity-50" : ""}`}
           >
             {/* Checkbox */}
@@ -448,6 +450,9 @@ export function LibraryList({
               {/* Row 1: title + rating + status */}
               <div className="flex items-center gap-1 sm:gap-1.5">
                 <h3 className="truncate text-sm font-medium">{item.title}</h3>
+                {(item.sortOrder || 0) > 0 && (
+                  <span className="flex-shrink-0 rounded bg-primary/15 px-1 py-0.5 text-[10px] font-medium text-primary">置顶</span>
+                )}
                 {item.voteAverage != null && item.voteAverage > 0 && (
                   <button
                     onClick={() => {

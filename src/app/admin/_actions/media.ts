@@ -30,14 +30,16 @@ function buildSortOrder(sortField?: string, sortDir?: string) {
 // Items with no release date should not be set to airing
 function isTmdbAiring(mediaType: string, tmdbStatus?: string, releaseDate?: string): boolean {
   if (!releaseDate) return false;
+  const release = new Date(releaseDate);
+  const daysSinceRelease = (Date.now() - release.getTime()) / (1000 * 60 * 60 * 24);
   if (mediaType === "tv") {
-    return tmdbStatus === "Returning Series";
+    // "Returning Series" AND first aired within the last 2 years
+    // Prevents old shows stuck as "Returning Series" from being marked airing
+    return tmdbStatus === "Returning Series" && daysSinceRelease <= 730;
   }
   if (mediaType === "movie") {
     // Movie is "热映中" if released within the last 90 days
-    if (tmdbStatus !== "Released" || !releaseDate) return false;
-    const release = new Date(releaseDate);
-    const daysSinceRelease = (Date.now() - release.getTime()) / (1000 * 60 * 60 * 24);
+    if (tmdbStatus !== "Released") return false;
     return daysSinceRelease >= 0 && daysSinceRelease <= 90;
   }
   return false;
@@ -725,14 +727,29 @@ export async function refetchMediaMetadata(id: number, options?: { silent?: bool
   const genres = JSON.stringify(details.genres.map((g) => g.name));
   const originCountry = details.origin_country?.[0] || null;
 
-  // Auto-detect airing status: only touch "planned" or "airing" items
+  // Auto-detect airing status: only auto-transition between "planned" ↔ "airing"
+  // Never override user's manual status (watching, completed, on_hold, dropped)
   const tmdbAiring = isTmdbAiring(item.mediaType, details.status, releaseDate);
   let newStatus: string | undefined;
   if (item.status === "planned" && tmdbAiring) {
-    newStatus = "airing";
+    // Only auto-set airing if user hasn't manually changed status away from airing before
+    const [manualChange] = await db
+      .select({ id: progressHistory.id })
+      .from(progressHistory)
+      .where(and(
+        eq(progressHistory.mediaItemId, item.id),
+        eq(progressHistory.action, "status_changed"),
+        sql`json_extract(${progressHistory.detail}, '$.from') = 'airing'`
+      ))
+      .limit(1);
+    if (!manualChange) {
+      newStatus = "airing";
+    }
   } else if (item.status === "airing" && !tmdbAiring) {
+    // Show is no longer airing per TMDB, revert to planned
     newStatus = "planned";
   }
+  // All other statuses (watching, completed, on_hold, dropped) are never touched
 
   await db
     .update(mediaItems)
