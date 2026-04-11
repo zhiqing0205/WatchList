@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -254,8 +255,8 @@ export function LibraryList({
 
   return (
     <>
-      {/* Global loading overlay */}
-      {globalLoading && (
+      {/* Global loading overlay — portaled to body to escape overflow-y-auto */}
+      {globalLoading && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 rounded-xl border bg-card p-8 shadow-2xl">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -263,7 +264,8 @@ export function LibraryList({
               处理中...
             </p>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Confirm dialog */}

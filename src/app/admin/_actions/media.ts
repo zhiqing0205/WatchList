@@ -584,6 +584,7 @@ export async function markTvCompleted(mediaItemId: number) {
   }
 
   // Force completed even for airing (explicit user action)
+  // Re-read status since updateTvProgress may have already changed it
   const [item] = await db.select().from(mediaItems).where(eq(mediaItems.id, mediaItemId)).limit(1);
   if (item && item.status !== "completed") {
     await db.update(mediaItems).set({ status: "completed", updatedAt: sql`datetime('now')` }).where(eq(mediaItems.id, mediaItemId));
@@ -591,7 +592,6 @@ export async function markTvCompleted(mediaItemId: number) {
   }
 
   await writeSystemLog("info", "progress_updated", `「${item?.title || mediaItemId}」标记为全部看完`, { id: mediaItemId });
-  revalidateAll(mediaItemId);
 }
 
 // Rewatch a TV show: set progress to S01E01 and status to watching (atomic single call)
@@ -655,27 +655,21 @@ export async function batchMarkCompleted(ids: number[]) {
         .set({ watched: true, watchedAt: sql`datetime('now')`, updatedAt: sql`datetime('now')` })
         .where(eq(movieProgress.mediaItemId, id));
     } else if (item.mediaType === "tv") {
-      // Set TV progress to the last episode of the last season
+      // Set TV progress to the last episode — updateTvProgress handles status auto-transition
       const [prog] = await db.select().from(tvProgress).where(eq(tvProgress.mediaItemId, id)).limit(1);
       if (prog) {
-        const seasonDetails: { season_number: number; episode_count: number }[] =
-          prog.seasonDetails ? JSON.parse(prog.seasonDetails) : [];
-        const seasons = seasonDetails.filter((s) => s.season_number > 0).sort((a, b) => a.season_number - b.season_number);
-        if (seasons.length > 0) {
-          const last = seasons[seasons.length - 1];
-          await updateTvProgress(id, { currentSeason: last.season_number, currentEpisode: last.episode_count });
+        const lastEp = getLastEpisodeFromDetails(prog.seasonDetails);
+        if (lastEp.episode > 0) {
+          await updateTvProgress(id, { currentSeason: lastEp.season, currentEpisode: lastEp.episode });
         }
       }
     }
 
-    const oldStatus = item.status;
-    await db
-      .update(mediaItems)
-      .set({ status: "completed", updatedAt: sql`datetime('now')` })
-      .where(eq(mediaItems.id, id));
-
-    if (oldStatus !== "completed") {
-      await recordHistory(id, "status_changed", { from: oldStatus, to: "completed" });
+    // Re-read status since updateTvProgress may have already set it to "completed"
+    const [current] = await db.select({ status: mediaItems.status }).from(mediaItems).where(eq(mediaItems.id, id)).limit(1);
+    if (current && current.status !== "completed") {
+      await db.update(mediaItems).set({ status: "completed", updatedAt: sql`datetime('now')` }).where(eq(mediaItems.id, id));
+      await recordHistory(id, "status_changed", { from: current.status, to: "completed" });
     }
   }
   await writeSystemLog("info", "batch_completed", `批量标记 ${ids.length} 个条目为已看`, { ids });
