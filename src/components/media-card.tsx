@@ -194,7 +194,7 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div className={`relative aspect-[2/3] overflow-hidden rounded-lg bg-muted ${(item.sortOrder || 0) > 0 ? "outline outline-2 outline-primary/50 -outline-offset-1" : ""}`}>
+      <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-muted">
         {/* Grayscale base layer */}
         <Image
           src={getImageUrl(item.posterPath)}
@@ -257,6 +257,10 @@ export function MediaCard({ item }: { item: MediaCardItem }) {
           </div>
         </div>
       </div>
+      {/* Pinned border overlay — outside overflow-hidden so it's never clipped */}
+      {(item.sortOrder || 0) > 0 && (
+        <div className="pointer-events-none absolute inset-0 bottom-auto aspect-[2/3] rounded-lg border-2 border-primary/50" />
+      )}
 
       {/* Title below card */}
       <div className="mt-2">
