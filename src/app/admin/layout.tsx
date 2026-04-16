@@ -10,7 +10,6 @@ import {
   Settings,
   LogOut,
   ScrollText,
-  Tags,
   History,
   ExternalLink,
   Menu,
@@ -24,8 +23,7 @@ import { AppIcon } from "@/components/app-icon";
 const navItems = [
   { href: "/admin", label: "仪表盘", icon: LayoutDashboard },
   { href: "/admin/library", label: "影视管理", icon: Library },
-  { href: "/admin/library/ratings", label: "评分历史", icon: History, indent: true },
-  { href: "/admin/library/tags", label: "标签管理", icon: Tags },
+  { href: "/admin/library/ratings", label: "评分历史", icon: History },
   { href: "/admin/logs", label: "系统日志", icon: ScrollText },
   { href: "/admin/settings", label: "系统设置", icon: Settings },
 ];
@@ -63,11 +61,10 @@ export default function AdminLayout({
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                  item.indent && "ml-4 text-xs"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
-                <item.icon className={cn("h-4 w-4", item.indent && "h-3.5 w-3.5")} />
+                <item.icon className="h-4 w-4" />
                 {item.label}
               </Link>
             );
@@ -140,11 +137,10 @@ export default function AdminLayout({
                   "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                  item.indent && "ml-4 text-xs"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
-                <item.icon className={cn("h-4 w-4", item.indent && "h-3.5 w-3.5")} />
+                <item.icon className="h-4 w-4" />
                 {item.label}
               </Link>
             );
