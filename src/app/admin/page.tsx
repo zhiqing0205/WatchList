@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import Image from "next/image";
 import { getDashboardStats } from "@/app/admin/_actions/media";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tv, Film, Eye, CheckCircle, History, Plus, BarChart3, CloudUpload } from "lucide-react";
+import { Tv, Film, Eye, CheckCircle, History, Plus, BarChart3, CloudUpload, Star } from "lucide-react";
 import { formatShortDateCST, formatDateTimeCST } from "@/lib/utils";
 import { getImageUrl } from "@/lib/tmdb";
 import Link from "next/link";
@@ -11,7 +11,7 @@ import {
   StatusPieChart,
   TagBarChart,
 } from "./_components/dashboard-charts";
-import { STATUS_LABELS } from "@/lib/status";
+import { STATUS_LABELS, STATUS_BADGE_COLORS } from "@/lib/status";
 
 const actionLabels: Record<string, string> = {
   episode_watched: "更新进度",
@@ -25,30 +25,65 @@ const actionIcons: Record<string, { icon: typeof Tv; color: string }> = {
   episode_watched: { icon: Tv, color: "text-blue-500" },
   movie_watched: { icon: Film, color: "text-green-500" },
   status_changed: { icon: Eye, color: "text-yellow-500" },
-  rating_changed: { icon: CheckCircle, color: "text-purple-500" },
-  added: { icon: Film, color: "text-primary" },
+  rating_changed: { icon: Star, color: "text-purple-500" },
+  added: { icon: Plus, color: "text-primary" },
 };
 
-function formatHistoryDetail(action: string, detail: string | null): string {
-  if (!detail) return "";
+function HistoryDetail({ action, detail }: { action: string; detail: string | null }) {
+  if (!detail) return null;
   try {
     const d = JSON.parse(detail);
     switch (action) {
-      case "episode_watched":
-        return d.to ? `→ ${d.to}` : "";
-      case "movie_watched":
-        return d.watched ? "标记已看" : "标记未看";
-      case "status_changed":
-        return `${STATUS_LABELS[d.from as keyof typeof STATUS_LABELS] || d.from} → ${STATUS_LABELS[d.to as keyof typeof STATUS_LABELS] || d.to}`;
-      case "rating_changed":
-        return `${d.from || "无"} → ${d.to || "无"}`;
-      case "added":
-        return d.mediaType === "tv" ? "添加剧集" : "添加电影";
+      case "episode_watched": {
+        return (
+          <div className="flex items-center gap-1.5">
+            {d.from && <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{d.from}</span>}
+            {d.from && <span className="text-xs text-muted-foreground">→</span>}
+            <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-xs font-medium text-primary">{d.to}</span>
+          </div>
+        );
+      }
+      case "status_changed": {
+        const fromLabel = STATUS_LABELS[d.from as keyof typeof STATUS_LABELS] || d.from;
+        const toLabel = STATUS_LABELS[d.to as keyof typeof STATUS_LABELS] || d.to;
+        const fromColor = STATUS_BADGE_COLORS[d.from as keyof typeof STATUS_BADGE_COLORS] || "bg-gray-500";
+        const toColor = STATUS_BADGE_COLORS[d.to as keyof typeof STATUS_BADGE_COLORS] || "bg-gray-500";
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium text-white ${fromColor}`}>{fromLabel}</span>
+            <span className="text-xs text-muted-foreground">→</span>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium text-white ${toColor}`}>{toLabel}</span>
+          </div>
+        );
+      }
+      case "movie_watched": {
+        return (
+          <span className={`rounded px-2 py-0.5 text-xs font-medium ${d.watched ? "bg-green-500/10 text-green-600" : "bg-gray-500/10 text-gray-500"}`}>
+            {d.watched ? "标记已看" : "标记未看"}
+          </span>
+        );
+      }
+      case "rating_changed": {
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="rounded bg-muted px-1.5 py-0.5 text-xs">{d.from ?? "无"}</span>
+            <span className="text-xs text-muted-foreground">→</span>
+            <span className="rounded bg-purple-500/10 px-1.5 py-0.5 text-xs font-medium text-purple-600">{d.to ?? "无"}</span>
+          </div>
+        );
+      }
+      case "added": {
+        return (
+          <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            {d.mediaType === "tv" ? "添加剧集" : "添加电影"}
+          </span>
+        );
+      }
       default:
-        return "";
+        return null;
     }
   } catch {
-    return "";
+    return null;
   }
 }
 
@@ -129,21 +164,17 @@ export default async function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Recent activity with posters */}
+      {/* Recent activity — card-based layout */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-medium">
             <History className="h-4 w-4" />
             最近动态
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="divide-y">
+          <div className="space-y-2">
             {stats.recentHistory.map((row) => {
-              const detail = formatHistoryDetail(
-                row.history.action,
-                row.history.detail
-              );
               const iconCfg = actionIcons[row.history.action];
               const Icon = iconCfg?.icon || Film;
               const iconColor = iconCfg?.color || "text-muted-foreground";
@@ -152,10 +183,10 @@ export default async function AdminDashboard() {
                 <Link
                   key={row.history.id}
                   href={`/admin/library/${row.history.mediaItemId}`}
-                  className="flex items-center gap-2.5 py-2.5 first:pt-0 last:pb-0 hover:bg-accent/30 -mx-2 px-2 rounded transition-colors"
+                  className="flex gap-3 rounded-lg border p-2.5 transition-colors hover:bg-accent/30 sm:p-3"
                 >
-                  {/* Poster thumbnail */}
-                  <div className="relative h-12 w-8 flex-shrink-0 overflow-hidden rounded">
+                  {/* Poster */}
+                  <div className="relative h-16 w-11 flex-shrink-0 overflow-hidden rounded-md sm:h-20 sm:w-14">
                     {row.posterPath ? (
                       <Image
                         src={getImageUrl(row.posterPath, "w92")}
@@ -165,32 +196,30 @@ export default async function AdminDashboard() {
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center bg-muted">
-                        <Film className="h-3 w-3 text-muted-foreground" />
+                        <Film className="h-4 w-4 text-muted-foreground" />
                       </div>
                     )}
                   </div>
 
-                  {/* Content — title + type on first line, action + detail on second */}
-                  <div className="flex-1 min-w-0">
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center gap-1.5">
-                      <p className="truncate text-sm font-medium leading-tight">{row.title}</p>
+                      <p className="truncate text-sm font-medium">{row.title}</p>
                       <span className="flex-shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                         {row.mediaType === "tv" ? "剧集" : "电影"}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <Icon className={`h-3 w-3 flex-shrink-0 ${iconColor}`} />
-                      <span className="text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
+                      <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${iconColor}`} />
+                      <span className="text-xs font-medium">
                         {actionLabels[row.history.action] || row.history.action}
                       </span>
-                      {detail && (
-                        <span className="text-xs font-medium text-foreground/70">{detail}</span>
-                      )}
                     </div>
+                    <HistoryDetail action={row.history.action} detail={row.history.detail} />
                   </div>
 
                   {/* Time */}
-                  <span className="text-[11px] text-muted-foreground flex-shrink-0 whitespace-nowrap">
+                  <span className="text-[10px] text-muted-foreground flex-shrink-0 whitespace-nowrap self-start sm:text-xs">
                     {formatShortDateCST(row.history.createdAt)}
                   </span>
                 </Link>
