@@ -2,6 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { STATUS_HEX_COLORS, STATUS_LABELS } from "@/lib/status";
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
 
 interface StatusPieProps {
   byStatus: Record<string, number>;
@@ -126,5 +137,60 @@ export function TagBarChart({ data }: TagBarProps) {
         );
       })}
     </div>
+  );
+}
+
+// Monthly additions area chart
+export function MonthlyAddChart({ data }: { data: { month: string; count: number }[] }) {
+  if (data.length === 0) {
+    return <p className="py-4 text-center text-sm text-muted-foreground">暂无数据</p>;
+  }
+
+  const chartData = data.map((d) => ({
+    month: d.month.substring(5),
+    count: d.count,
+  }));
+
+  return (
+    <ResponsiveContainer width="100%" height={180}>
+      <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis dataKey="month" tick={{ fontSize: 11, className: "fill-muted-foreground" }} tickLine={false} axisLine={false} />
+        <YAxis tick={{ fontSize: 11, className: "fill-muted-foreground" }} tickLine={false} axisLine={false} allowDecimals={false} />
+        <Tooltip
+          contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--card-foreground)", fontSize: "12px" }}
+          formatter={(value: number | undefined) => [value ?? 0, "入库"]}
+        />
+        <Area type="monotone" dataKey="count" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.15} strokeWidth={2} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+// Rating distribution bar chart (user ratings 1-10)
+export function RatingDistChart({ data }: { data: { rating: number; count: number }[] }) {
+  const full = Array.from({ length: 10 }, (_, i) => {
+    const r = i + 1;
+    const found = data.find((d) => d.rating === r);
+    return { rating: String(r), count: found?.count || 0 };
+  });
+
+  if (data.length === 0) {
+    return <p className="py-4 text-center text-sm text-muted-foreground">暂无评分数据</p>;
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={180}>
+      <BarChart data={full} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis dataKey="rating" tick={{ fontSize: 11, className: "fill-muted-foreground" }} tickLine={false} axisLine={false} />
+        <YAxis tick={{ fontSize: 11, className: "fill-muted-foreground" }} tickLine={false} axisLine={false} allowDecimals={false} />
+        <Tooltip
+          contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--card-foreground)", fontSize: "12px" }}
+          formatter={(value: number | undefined) => [value ?? 0, "部"]}
+        />
+        <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} fillOpacity={0.8} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }

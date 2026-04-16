@@ -10,6 +10,8 @@ import Link from "next/link";
 import {
   StatusPieChart,
   TagBarChart,
+  MonthlyAddChart,
+  RatingDistChart,
 } from "./_components/dashboard-charts";
 import { STATUS_LABELS, STATUS_BADGE_COLORS } from "@/lib/status";
 
@@ -116,11 +118,12 @@ export default async function AdminDashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">评分历史</CardTitle>
+            <CardTitle className="text-sm font-medium">影视总数</CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.ratingHistoryTotal}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground mt-0.5">剧集 {stats.byType.tv || 0} · 电影 {stats.byType.movie || 0}</p>
           </CardContent>
         </Card>
         <Card>
@@ -160,6 +163,27 @@ export default async function AdminDashboard() {
           </CardHeader>
           <CardContent className="px-3 pb-2">
             <TagBarChart data={stats.tagDistribution} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Second row of charts: Monthly trend + Rating distribution */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="gap-2 py-3">
+          <CardHeader className="px-3 pb-0">
+            <CardTitle className="text-sm font-medium">月度入库趋势</CardTitle>
+          </CardHeader>
+          <CardContent className="px-3 pb-2">
+            <MonthlyAddChart data={stats.monthlyAdds} />
+          </CardContent>
+        </Card>
+
+        <Card className="gap-2 py-3">
+          <CardHeader className="px-3 pb-0">
+            <CardTitle className="text-sm font-medium">我的评分分布</CardTitle>
+          </CardHeader>
+          <CardContent className="px-3 pb-2">
+            <RatingDistChart data={stats.ratingDistribution} />
           </CardContent>
         </Card>
       </div>
