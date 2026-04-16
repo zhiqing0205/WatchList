@@ -15,7 +15,7 @@ export const mediaItems = sqliteTable("media_items", {
   genres: text("genres"), // JSON string
   originCountry: text("origin_country"), // e.g. "US", "CN"
   status: text("status", {
-    enum: ["watching", "completed", "planned", "dropped", "on_hold", "airing"],
+    enum: ["watching", "completed", "planned", "dropped", "on_hold", "airing", "upcoming"],
   })
     .notNull()
     .default("planned"),

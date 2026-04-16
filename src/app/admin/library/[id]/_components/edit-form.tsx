@@ -210,7 +210,7 @@ export function MediaEditForm({ item, allTags: initialTags, cast, ratingHistory 
 
       // 2. Then update status and other fields — user's explicit choice wins
       await updateMediaItem(item.id, {
-        status: status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing",
+        status: status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing" | "upcoming",
         rating: rating ? Number(rating) : null,
         notes: notes || null,
         playUrl: playUrl || null,

@@ -88,7 +88,11 @@ export async function addMediaFromTmdb(
   const releaseDate = details.release_date || details.first_air_date;
   const genres = JSON.stringify(details.genres.map((g) => g.name));
   const originCountry = details.origin_country?.[0] || null;
-  const initialStatus = isTmdbAiring(mediaType, details.status, releaseDate) ? "airing" : "planned";
+  const initialStatus = isTmdbAiring(mediaType, details.status, releaseDate)
+    ? "airing"
+    : !releaseDate
+      ? "upcoming"
+      : "planned";
 
   const existing = await db
     .select()
@@ -208,7 +212,7 @@ export async function getMediaItemsWithProgress(options?: {
   } = options || {};
 
   const conditions = [];
-  if (status) conditions.push(eq(mediaItems.status, status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing"));
+  if (status) conditions.push(eq(mediaItems.status, status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing" | "upcoming"));
   if (mediaType) conditions.push(eq(mediaItems.mediaType, mediaType as "movie" | "tv"));
   if (search) conditions.push(like(mediaItems.title, `%${search}%`));
   if (genre) conditions.push(like(mediaItems.genres, `%${genre}%`));
@@ -327,7 +331,7 @@ export async function getMediaItems(options?: {
   } = options || {};
 
   const conditions = [];
-  if (status) conditions.push(eq(mediaItems.status, status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing"));
+  if (status) conditions.push(eq(mediaItems.status, status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing" | "upcoming"));
   if (mediaType) conditions.push(eq(mediaItems.mediaType, mediaType as "movie" | "tv"));
   if (search) conditions.push(like(mediaItems.title, `%${search}%`));
   if (visibleOnly) conditions.push(eq(mediaItems.isVisible, true));
@@ -415,7 +419,7 @@ export async function updateMediaItem(
     .update(mediaItems)
     .set({
       ...data,
-      status: data.status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing" | undefined,
+      status: data.status as "watching" | "completed" | "planned" | "dropped" | "on_hold" | "airing" | "upcoming" | undefined,
       updatedAt: sql`datetime('now')`,
     })
     .where(eq(mediaItems.id, id));
@@ -438,7 +442,7 @@ export async function updateMediaItem(
             }).where(eq(tvProgress.mediaItemId, id));
           }
         }
-      } else if (data.status === "planned") {
+      } else if (data.status === "planned" || data.status === "upcoming") {
         await db.update(tvProgress).set({
           currentSeason: 1,
           currentEpisode: 0,
@@ -452,7 +456,7 @@ export async function updateMediaItem(
           watchedAt: sql`datetime('now')`,
           updatedAt: sql`datetime('now')`,
         }).where(eq(movieProgress.mediaItemId, id));
-      } else if (data.status === "planned") {
+      } else if (data.status === "planned" || data.status === "upcoming") {
         await db.update(movieProgress).set({
           watched: false,
           watchedAt: null,
@@ -480,7 +484,7 @@ function resolveStatusFromTvProgress(
   episode: number,
   seasonDetailsJson: string | null
 ): "watching" | "completed" | "planned" | null {
-  if (currentStatus === "airing") return null;
+  if (currentStatus === "airing" || currentStatus === "upcoming") return null;
 
   const lastEp = getLastEpisodeFromDetails(seasonDetailsJson);
   const isAtEnd = lastEp.episode > 0 && season === lastEp.season && episode >= lastEp.episode;
@@ -616,9 +620,9 @@ export async function updateMovieProgress(
     })
     .where(eq(movieProgress.mediaItemId, mediaItemId));
 
-  // Auto-update status, but never override "airing"
+  // Auto-update status, but never override "airing" or "upcoming"
   const [item] = await db.select().from(mediaItems).where(eq(mediaItems.id, mediaItemId)).limit(1);
-  if (item && item.status !== "airing") {
+  if (item && item.status !== "airing" && item.status !== "upcoming") {
     const newStatus = watched ? "completed" : "planned";
     if (item.status !== newStatus) {
       await db.update(mediaItems).set({ status: newStatus, updatedAt: sql`datetime('now')` }).where(eq(mediaItems.id, mediaItemId));
@@ -721,11 +725,21 @@ export async function refetchMediaMetadata(id: number, options?: { silent?: bool
   const genres = JSON.stringify(details.genres.map((g) => g.name));
   const originCountry = details.origin_country?.[0] || null;
 
-  // Auto-detect airing status: only auto-transition between "planned" ↔ "airing"
-  // Never override user's manual status (watching, completed, on_hold, dropped)
+  // Auto-detect airing/upcoming status transitions
+  // Rules:
+  //   planned + no releaseDate  → upcoming
+  //   upcoming + has releaseDate + tmdbAiring → airing
+  //   upcoming + has releaseDate + !tmdbAiring → planned
+  //   planned + tmdbAiring → airing (unless user manually changed from airing before)
+  //   airing + !tmdbAiring → planned
+  //   Other user-managed statuses (watching, completed, on_hold, dropped) are never touched
   const tmdbAiring = isTmdbAiring(item.mediaType, details.status, releaseDate);
   let newStatus: string | undefined;
-  if (item.status === "planned" && tmdbAiring) {
+  if (item.status === "planned" && !releaseDate) {
+    newStatus = "upcoming";
+  } else if (item.status === "upcoming" && releaseDate) {
+    newStatus = tmdbAiring ? "airing" : "planned";
+  } else if (item.status === "planned" && tmdbAiring) {
     // Only auto-set airing if user hasn't manually changed status away from airing before
     const [manualChange] = await db
       .select({ id: progressHistory.id })
@@ -758,7 +772,7 @@ export async function refetchMediaMetadata(id: number, options?: { silent?: bool
       genres,
       originCountry,
       metadataUpdatedAt: sql`datetime('now')`,
-      ...(newStatus ? { status: newStatus as "airing" | "planned" } : {}),
+      ...(newStatus ? { status: newStatus as "airing" | "planned" | "upcoming" } : {}),
     })
     .where(eq(mediaItems.id, id));
 
@@ -998,7 +1012,7 @@ export async function getDashboardStats() {
     .where(eq(siteConfigTable.key, "last_backup_time"))
     .limit(1);
 
-  const recentHistory = await getProgressHistoryList(10);
+  const recentHistory = await getProgressHistoryList(20);
 
   return {
     total: totalCount.count,
@@ -1027,7 +1041,7 @@ export async function getMediaItemsGroupedByStatus(options?: {
   await ensureMigrated();
   const { mediaType, visibleOnly = true, limit = 15, sortField, sortDir, statusSorts } = options || {};
 
-  const statuses = ["airing", "watching", "planned", "completed", "on_hold"] as const;
+  const statuses = ["airing", "upcoming", "watching", "planned", "completed", "on_hold"] as const;
   const groups: { status: string; items: Awaited<ReturnType<typeof getMediaItemsWithProgress>>["items"]; total: number }[] = [];
 
   for (const status of statuses) {
