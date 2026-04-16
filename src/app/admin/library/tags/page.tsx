@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Loader2, ChevronDown, ChevronRight, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { getAllTags, createTag, updateTag, deleteTag, getMediaItemsByTagId } from "@/app/admin/_actions/media";
 import { getImageUrl } from "@/lib/tmdb";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Tag } from "@/db/schema";
 
 function slugify(text: string): string {
@@ -126,23 +127,43 @@ export default function LibraryTagsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Link href="/admin/library" className="text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <h1 className="text-2xl font-bold">标签管理</h1>
+        <div>
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="mt-2 h-4 w-72" />
         </div>
-        <p>加载中...</p>
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-24" /></CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-3">
+              <Skeleton className="h-10 flex-1" />
+              <Skeleton className="h-10 w-16" />
+              <Skeleton className="h-10 w-20" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-32" /></CardHeader>
+          <CardContent className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-md border p-3">
+                <Skeleton className="h-4 w-4" />
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-4 w-24" />
+                <div className="ml-auto flex items-center gap-2">
+                  <Skeleton className="h-8 w-12" />
+                  <Skeleton className="h-8 w-8" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/admin/library" className="text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
+      <div>
         <h1 className="text-2xl font-bold">标签管理</h1>
         <p className="text-sm text-muted-foreground">
           标签初始从 TMDB 分类创建，后续自定义修改不会被元数据更新覆盖

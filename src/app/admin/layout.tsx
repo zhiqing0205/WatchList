@@ -24,8 +24,8 @@ import { AppIcon } from "@/components/app-icon";
 const navItems = [
   { href: "/admin", label: "仪表盘", icon: LayoutDashboard },
   { href: "/admin/library", label: "影视管理", icon: Library },
-  { href: "/admin/library/tags", label: "标签管理", icon: Tags, indent: true },
   { href: "/admin/library/ratings", label: "评分历史", icon: History, indent: true },
+  { href: "/admin/library/tags", label: "标签管理", icon: Tags },
   { href: "/admin/logs", label: "系统日志", icon: ScrollText },
   { href: "/admin/settings", label: "系统设置", icon: Settings },
 ];
