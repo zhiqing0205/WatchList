@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Tags } from "lucide-react";
 import { LibraryList } from "./_components/library-list";
 import { LibrarySearch } from "./_components/library-search";
+import { AddMediaButton } from "./_components/search-media-dialog";
 import { STATUS_LABELS } from "@/lib/status";
 
 interface Props {
@@ -37,12 +38,7 @@ export default async function LibraryPage({ searchParams }: Props) {
               <span className="hidden sm:inline">标签管理</span>
             </Link>
           </Button>
-          <Button asChild size="sm" className="sm:size-default">
-            <Link href="/admin/library/search">
-              <Plus className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">添加影视</span>
-            </Link>
-          </Button>
+          <AddMediaButton />
         </div>
       </div>
 
