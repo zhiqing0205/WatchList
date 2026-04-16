@@ -87,7 +87,7 @@ export function RatingHistoryFeed({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="grid gap-2 lg:grid-cols-2">
       {items.map((item) => {
         const diff = item.previousVoteAverage != null
           ? Math.round((item.voteAverage - item.previousVoteAverage) * 10) / 10

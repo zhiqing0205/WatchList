@@ -1361,8 +1361,13 @@ export async function getAllRatingHistory(options?: { page?: number; limit?: num
       .from(ratingHistory),
   ]);
 
+  const [distinctMedia] = await db
+    .select({ count: sql<number>`count(DISTINCT ${ratingHistory.mediaItemId})` })
+    .from(ratingHistory);
+
   return {
     items: rows,
     total: countResult[0].count,
+    distinctMediaCount: distinctMedia.count,
   };
 }
