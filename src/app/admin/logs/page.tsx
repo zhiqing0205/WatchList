@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { getSystemLogs } from "@/app/admin/_actions/media";
 import { Pagination } from "@/components/pagination";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTimeCST } from "@/lib/utils";
 import {
@@ -15,12 +16,15 @@ import {
   Play,
   CheckCircle2,
   EyeOff,
+  Info,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react";
 
-const levelConfig: Record<string, { label: string; color: string; border: string }> = {
-  info: { label: "信息", color: "bg-blue-500", border: "" },
-  warn: { label: "警告", color: "bg-yellow-500", border: "border-l-2 border-l-yellow-500" },
-  error: { label: "错误", color: "bg-red-500", border: "border-l-2 border-l-red-500" },
+const levelConfig: Record<string, { label: string; color: string; bg: string; border: string; icon: typeof Info }> = {
+  info: { label: "信息", color: "bg-blue-500", bg: "bg-blue-500/10 text-blue-600", border: "", icon: Info },
+  warn: { label: "警告", color: "bg-yellow-500", bg: "bg-yellow-500/10 text-yellow-600", border: "border-l-2 border-l-yellow-500", icon: AlertTriangle },
+  error: { label: "错误", color: "bg-red-500", bg: "bg-red-500/10 text-red-600", border: "border-l-2 border-l-red-500", icon: XCircle },
 };
 
 const actionConfig: Record<string, { label: string; icon: typeof Plus }> = {
@@ -117,7 +121,7 @@ export default async function LogsPage({ searchParams }: Props) {
   const page = Number(params.page) || 1;
   const level = params.level || undefined;
   const action = params.action || undefined;
-  const { items, totalPages, total, byLevel } = await getSystemLogs(page, 50, { level, action });
+  const { items, totalPages, total, byLevel } = await getSystemLogs(page, 30, { level, action });
 
   const totalAll = (byLevel.info || 0) + (byLevel.warn || 0) + (byLevel.error || 0);
 
@@ -130,40 +134,57 @@ export default async function LogsPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="max-w-6xl mx-auto space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold sm:text-2xl">系统日志</h1>
         <span className="text-sm text-muted-foreground">共 {total} 条</span>
       </div>
 
-      {/* Level filter tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-        <Link href={filterUrl("level", undefined)}>
-          <Badge variant={!level ? "default" : "outline"} className="cursor-pointer">
-            全部 {totalAll}
-          </Badge>
-        </Link>
+      {/* Level summary cards */}
+      <div className="grid grid-cols-3 gap-3">
         {(["info", "warn", "error"] as const).map((lv) => {
           const cfg = levelConfig[lv];
+          const LvIcon = cfg.icon;
           const count = byLevel[lv] || 0;
-          if (count === 0) return null;
           return (
-            <Link key={lv} href={filterUrl("level", lv)}>
-              <Badge variant={level === lv ? "default" : "outline"} className="cursor-pointer gap-1.5">
-                <span className={`h-1.5 w-1.5 rounded-full ${cfg.color}`} />
-                {cfg.label} {count}
-              </Badge>
+            <Link key={lv} href={filterUrl("level", level === lv ? undefined : lv)}>
+              <Card className={`transition-colors hover:bg-accent/50 ${level === lv ? "ring-2 ring-primary" : ""}`}>
+                <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${cfg.bg}`}>
+                    <LvIcon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{cfg.label}</p>
+                    <p className="text-lg font-bold leading-none mt-0.5">{count}</p>
+                  </div>
+                </CardContent>
+              </Card>
             </Link>
           );
         })}
       </div>
 
+      {/* Active filter indicator */}
+      {level && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">筛选:</span>
+          <Link href={filterUrl("level", undefined)}>
+            <Badge variant="default" className="cursor-pointer gap-1">
+              <span className={`h-1.5 w-1.5 rounded-full ${levelConfig[level]?.color}`} />
+              {levelConfig[level]?.label}
+              <span className="ml-1 text-[10px] opacity-70">✕</span>
+            </Badge>
+          </Link>
+        </div>
+      )}
+
+      {/* Log entries */}
       {items.length === 0 ? (
-        <div className="flex flex-col items-center py-10 text-muted-foreground">
+        <div className="flex flex-col items-center py-16 text-muted-foreground">
           <p>暂无日志记录</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="max-w-4xl mx-auto space-y-2">
           {items.map((log) => {
             const lvCfg = levelConfig[log.level] || levelConfig.info;
             const actCfg = actionConfig[log.action];
@@ -176,7 +197,7 @@ export default async function LogsPage({ searchParams }: Props) {
             }
 
             return (
-              <div key={log.id} className={`rounded-lg border p-3 space-y-1.5 sm:p-4 ${lvCfg.border}`}>
+              <div key={log.id} className={`rounded-lg border p-3 space-y-1.5 ${lvCfg.border}`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className={`h-2 w-2 flex-shrink-0 rounded-full ${lvCfg.color}`} />
