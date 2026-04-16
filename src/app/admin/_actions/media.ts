@@ -26,6 +26,12 @@ function buildSortOrder(sortField?: string, sortDir?: string) {
   return sql`${mediaItems.sortOrder} DESC, ${secondary}`;
 }
 
+// Check if a release date is in the future (or absent)
+function isUpcoming(releaseDate?: string | null): boolean {
+  if (!releaseDate) return true;
+  return new Date(releaseDate) > new Date();
+}
+
 // Determine if a TMDB item is currently airing/playing
 // Items with no release date should not be set to airing
 function isTmdbAiring(mediaType: string, tmdbStatus?: string, releaseDate?: string): boolean {
@@ -90,7 +96,7 @@ export async function addMediaFromTmdb(
   const originCountry = details.origin_country?.[0] || null;
   const initialStatus = isTmdbAiring(mediaType, details.status, releaseDate)
     ? "airing"
-    : !releaseDate
+    : isUpcoming(releaseDate)
       ? "upcoming"
       : "planned";
 
@@ -729,15 +735,17 @@ export async function refetchMediaMetadata(id: number, options?: { silent?: bool
   // Rules:
   //   planned + no releaseDate  → upcoming
   //   upcoming + has releaseDate + tmdbAiring → airing
-  //   upcoming + has releaseDate + !tmdbAiring → planned
+  //   planned + upcoming criteria → upcoming
+  //   upcoming + releaseDate已过 + tmdbAiring → airing
+  //   upcoming + releaseDate已过 + !tmdbAiring → planned
   //   planned + tmdbAiring → airing (unless user manually changed from airing before)
   //   airing + !tmdbAiring → planned
   //   Other user-managed statuses (watching, completed, on_hold, dropped) are never touched
   const tmdbAiring = isTmdbAiring(item.mediaType, details.status, releaseDate);
   let newStatus: string | undefined;
-  if (item.status === "planned" && !releaseDate) {
+  if (item.status === "planned" && isUpcoming(releaseDate)) {
     newStatus = "upcoming";
-  } else if (item.status === "upcoming" && releaseDate) {
+  } else if (item.status === "upcoming" && !isUpcoming(releaseDate)) {
     newStatus = tmdbAiring ? "airing" : "planned";
   } else if (item.status === "planned" && tmdbAiring) {
     // Only auto-set airing if user hasn't manually changed status away from airing before
