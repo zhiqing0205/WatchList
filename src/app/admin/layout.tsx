@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
-  Search,
   Library,
   Settings,
   LogOut,
@@ -24,7 +23,6 @@ import { AppIcon } from "@/components/app-icon";
 
 const navItems = [
   { href: "/admin", label: "仪表盘", icon: LayoutDashboard },
-  { href: "/admin/search", label: "搜索添加", icon: Search },
   { href: "/admin/library", label: "影视管理", icon: Library },
   { href: "/admin/library/tags", label: "标签管理", icon: Tags, indent: true },
   { href: "/admin/library/ratings", label: "评分历史", icon: History, indent: true },

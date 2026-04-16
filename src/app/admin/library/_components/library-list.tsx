@@ -564,7 +564,7 @@ export function LibraryList({
           <div className="flex flex-col items-center py-10 text-muted-foreground">
             <p>暂无影视内容</p>
             <Button asChild className="mt-4" variant="outline">
-              <Link href="/admin/search">去搜索添加</Link>
+              <Link href="/admin/library/search">去搜索添加</Link>
             </Button>
           </div>
         )}

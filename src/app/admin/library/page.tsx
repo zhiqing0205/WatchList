@@ -38,7 +38,7 @@ export default async function LibraryPage({ searchParams }: Props) {
             </Link>
           </Button>
           <Button asChild size="sm" className="sm:size-default">
-            <Link href="/admin/search">
+            <Link href="/admin/library/search">
               <Plus className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">添加影视</span>
             </Link>
