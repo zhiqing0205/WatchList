@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { getSystemLogs } from "@/app/admin/_actions/media";
 import { Pagination } from "@/components/pagination";
+import { Badge } from "@/components/ui/badge";
 import { formatDateTimeCST } from "@/lib/utils";
 import {
   Plus,
@@ -13,13 +15,12 @@ import {
   Play,
   CheckCircle2,
   EyeOff,
-  Eye,
 } from "lucide-react";
 
-const levelColors: Record<string, string> = {
-  info: "bg-blue-500",
-  warn: "bg-yellow-500",
-  error: "bg-red-500",
+const levelConfig: Record<string, { label: string; color: string; border: string }> = {
+  info: { label: "信息", color: "bg-blue-500", border: "" },
+  warn: { label: "警告", color: "bg-yellow-500", border: "border-l-2 border-l-yellow-500" },
+  error: { label: "错误", color: "bg-red-500", border: "border-l-2 border-l-red-500" },
 };
 
 const actionConfig: Record<string, { label: string; icon: typeof Plus }> = {
@@ -36,7 +37,6 @@ const actionConfig: Record<string, { label: string; icon: typeof Plus }> = {
 };
 
 function LogDetail({ action, detail }: { action: string; detail: Record<string, unknown> }) {
-  // Batch operations with titles
   if ((action === "batch_deleted" || action === "batch_completed") && Array.isArray(detail.titles)) {
     return (
       <div className="flex flex-wrap gap-1">
@@ -47,7 +47,6 @@ function LogDetail({ action, detail }: { action: string; detail: Record<string, 
     );
   }
 
-  // Metadata refresh results
   if (action.includes("metadata") && detail.success !== undefined) {
     return (
       <div className="flex flex-wrap gap-1.5">
@@ -59,9 +58,7 @@ function LogDetail({ action, detail }: { action: string; detail: Record<string, 
             失败 {String(detail.failed)}
           </span>
         )}
-        <span className="rounded bg-muted px-2 py-0.5 text-[11px]">
-          共 {String(detail.total)}
-        </span>
+        <span className="rounded bg-muted px-2 py-0.5 text-[11px]">共 {String(detail.total)}</span>
         {detail.newRatings !== undefined && Number(detail.newRatings) > 0 && (
           <span className="rounded bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-600">
             新增评分 {String(detail.newRatings)}
@@ -78,7 +75,6 @@ function LogDetail({ action, detail }: { action: string; detail: Record<string, 
     );
   }
 
-  // Status / field changes with from → to
   if (detail.from !== undefined || detail.to !== undefined) {
     return (
       <div className="flex flex-wrap items-center gap-1.5">
@@ -95,7 +91,6 @@ function LogDetail({ action, detail }: { action: string; detail: Record<string, 
     );
   }
 
-  // Fallback: render all key-value pairs
   const entries = Object.entries(detail).filter(
     ([, v]) => v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0)
   );
@@ -114,19 +109,53 @@ function LogDetail({ action, detail }: { action: string; detail: Record<string, 
 }
 
 interface Props {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; level?: string; action?: string }>;
 }
 
 export default async function LogsPage({ searchParams }: Props) {
   const params = await searchParams;
   const page = Number(params.page) || 1;
-  const { items, totalPages, total } = await getSystemLogs(page, 50);
+  const level = params.level || undefined;
+  const action = params.action || undefined;
+  const { items, totalPages, total, byLevel } = await getSystemLogs(page, 50, { level, action });
+
+  const totalAll = (byLevel.info || 0) + (byLevel.warn || 0) + (byLevel.error || 0);
+
+  function filterUrl(key: string, value: string | undefined) {
+    const p = new URLSearchParams();
+    if (level && key !== "level") p.set("level", level);
+    if (action && key !== "action") p.set("action", action);
+    if (value) p.set(key, value);
+    return `/admin/logs${p.toString() ? `?${p.toString()}` : ""}`;
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold sm:text-2xl">系统日志</h1>
         <span className="text-sm text-muted-foreground">共 {total} 条</span>
+      </div>
+
+      {/* Level filter tabs */}
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <Link href={filterUrl("level", undefined)}>
+          <Badge variant={!level ? "default" : "outline"} className="cursor-pointer">
+            全部 {totalAll}
+          </Badge>
+        </Link>
+        {(["info", "warn", "error"] as const).map((lv) => {
+          const cfg = levelConfig[lv];
+          const count = byLevel[lv] || 0;
+          if (count === 0) return null;
+          return (
+            <Link key={lv} href={filterUrl("level", lv)}>
+              <Badge variant={level === lv ? "default" : "outline"} className="cursor-pointer gap-1.5">
+                <span className={`h-1.5 w-1.5 rounded-full ${cfg.color}`} />
+                {cfg.label} {count}
+              </Badge>
+            </Link>
+          );
+        })}
       </div>
 
       {items.length === 0 ? (
@@ -136,9 +165,9 @@ export default async function LogsPage({ searchParams }: Props) {
       ) : (
         <div className="space-y-2">
           {items.map((log) => {
-            const color = levelColors[log.level] || levelColors.info;
-            const action = actionConfig[log.action];
-            const Icon = action?.icon;
+            const lvCfg = levelConfig[log.level] || levelConfig.info;
+            const actCfg = actionConfig[log.action];
+            const Icon = actCfg?.icon;
             let detail: Record<string, unknown> | null = null;
             try {
               detail = log.detail ? JSON.parse(log.detail) : null;
@@ -147,25 +176,20 @@ export default async function LogsPage({ searchParams }: Props) {
             }
 
             return (
-              <div key={log.id} className="rounded-lg border p-3 space-y-1.5 sm:p-4">
-                {/* Header: level + action + time */}
+              <div key={log.id} className={`rounded-lg border p-3 space-y-1.5 sm:p-4 ${lvCfg.border}`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 flex-shrink-0 rounded-full ${color}`} />
+                    <span className={`h-2 w-2 flex-shrink-0 rounded-full ${lvCfg.color}`} />
                     <span className="inline-flex items-center gap-1.5 text-sm font-medium">
                       {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
-                      {action?.label || log.action}
+                      {actCfg?.label || log.action}
                     </span>
                   </div>
                   <span className="text-[11px] text-muted-foreground whitespace-nowrap" title={log.createdAt || ""}>
                     {formatDateTimeCST(log.createdAt)}
                   </span>
                 </div>
-
-                {/* Message */}
                 <p className="text-sm">{log.message}</p>
-
-                {/* Formatted detail */}
                 {detail && <LogDetail action={log.action} detail={detail} />}
               </div>
             );
@@ -173,7 +197,7 @@ export default async function LogsPage({ searchParams }: Props) {
         </div>
       )}
 
-      <Pagination currentPage={page} totalPages={totalPages} baseUrl="/admin/logs" />
+      <Pagination currentPage={page} totalPages={totalPages} baseUrl={filterUrl("page", undefined)} />
     </div>
   );
 }

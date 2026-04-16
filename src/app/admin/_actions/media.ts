@@ -1198,21 +1198,35 @@ export async function importMediaByTmdbId(
 }
 
 // Get system logs with pagination
-export async function getSystemLogs(page = 1, limit = 50) {
+export async function getSystemLogs(page = 1, limit = 50, filters?: { level?: string; action?: string }) {
   await ensureMigrated();
-  const [items, countResult] = await Promise.all([
+  const conditions = [];
+  if (filters?.level) conditions.push(eq(systemLogs.level, filters.level as "info" | "warn" | "error"));
+  if (filters?.action) conditions.push(eq(systemLogs.action, filters.action));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [items, countResult, levelCounts] = await Promise.all([
     db
       .select()
       .from(systemLogs)
+      .where(where)
       .orderBy(desc(systemLogs.createdAt))
       .limit(limit)
       .offset((page - 1) * limit),
-    db.select({ count: sql<number>`count(*)` }).from(systemLogs),
+    db.select({ count: sql<number>`count(*)` }).from(systemLogs).where(where),
+    db
+      .select({ level: systemLogs.level, count: sql<number>`count(*)` })
+      .from(systemLogs)
+      .groupBy(systemLogs.level),
   ]);
+  const byLevel: Record<string, number> = {};
+  for (const r of levelCounts) byLevel[r.level] = r.count;
+
   return {
     items,
     total: countResult[0].count,
     totalPages: Math.ceil(countResult[0].count / limit),
+    byLevel,
   };
 }
 
