@@ -40,7 +40,9 @@ const actionConfig: Record<string, { label: string; icon: typeof Plus }> = {
   manual_metadata_refresh: { label: "手动更新", icon: RefreshCw },
 };
 
+// Only show detail info that adds context beyond the message
 function LogDetail({ action, detail }: { action: string; detail: Record<string, unknown> }) {
+  // Batch operations: show affected titles (not in message)
   if ((action === "batch_deleted" || action === "batch_completed") && Array.isArray(detail.titles)) {
     return (
       <div className="flex flex-wrap gap-1">
@@ -51,52 +53,36 @@ function LogDetail({ action, detail }: { action: string; detail: Record<string, 
     );
   }
 
-  if (action.includes("metadata") && detail.success !== undefined) {
-    return (
-      <div className="flex flex-wrap gap-1.5">
-        <span className="rounded bg-green-500/10 px-2 py-0.5 text-[11px] font-medium text-green-600">
-          成功 {String(detail.success)}
+  // Metadata refresh: message already has success/failed/total, only show extras
+  if (action.includes("metadata")) {
+    const extras: React.ReactNode[] = [];
+    if (detail.newRatings !== undefined && Number(detail.newRatings) > 0) {
+      extras.push(
+        <span key="ratings" className="rounded bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-600">
+          新增评分 {String(detail.newRatings)}
         </span>
-        {Number(detail.failed) > 0 && (
-          <span className="rounded bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-500">
-            失败 {String(detail.failed)}
-          </span>
-        )}
-        <span className="rounded bg-muted px-2 py-0.5 text-[11px]">共 {String(detail.total)}</span>
-        {detail.newRatings !== undefined && Number(detail.newRatings) > 0 && (
-          <span className="rounded bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-600">
-            新增评分 {String(detail.newRatings)}
-          </span>
-        )}
-        {Array.isArray(detail.errors) && detail.errors.length > 0 && (
-          <div className="w-full mt-1 space-y-0.5">
-            {(detail.errors as string[]).slice(0, 5).map((err, i) => (
-              <p key={i} className="text-[11px] text-red-500 truncate">{err}</p>
-            ))}
-          </div>
-        )}
-      </div>
-    );
+      );
+    }
+    if (Array.isArray(detail.errors) && detail.errors.length > 0) {
+      extras.push(
+        ...(detail.errors as string[]).slice(0, 3).map((err, i) => (
+          <p key={`err-${i}`} className="w-full text-[11px] text-red-500 truncate">{err}</p>
+        ))
+      );
+    }
+    return extras.length > 0 ? <div className="flex flex-wrap gap-1.5">{extras}</div> : null;
   }
 
-  if (detail.from !== undefined || detail.to !== undefined) {
-    return (
-      <div className="flex flex-wrap items-center gap-1.5">
-        {Object.entries(detail).map(([key, value]) => {
-          if (value === null || value === undefined) return null;
-          return (
-            <span key={key} className="rounded bg-muted px-1.5 py-0.5 text-[11px]">
-              <span className="text-muted-foreground">{key}:</span>{" "}
-              <span className="font-medium">{String(value)}</span>
-            </span>
-          );
-        })}
-      </div>
-    );
+  // Status/field changes: show from → to inline, skip id/redundant fields
+  if (detail.from !== undefined && detail.to !== undefined) {
+    // The message already says what changed; from/to is implicit. Skip.
+    return null;
   }
 
+  // Generic fallback: skip id, skip fields already in message
+  const skipKeys = new Set(["id", "ids", "mediaType", "tmdbId", "success", "failed", "total"]);
   const entries = Object.entries(detail).filter(
-    ([, v]) => v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0)
+    ([k, v]) => !skipKeys.has(k) && v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0)
   );
   if (entries.length === 0) return null;
 
@@ -104,8 +90,7 @@ function LogDetail({ action, detail }: { action: string; detail: Record<string, 
     <div className="flex flex-wrap gap-1.5">
       {entries.map(([key, value]) => (
         <span key={key} className="rounded bg-muted px-1.5 py-0.5 text-[11px]">
-          <span className="text-muted-foreground">{key}:</span>{" "}
-          <span className="font-medium">{Array.isArray(value) ? `${value.length} 项` : String(value)}</span>
+          {Array.isArray(value) ? `${value.length} 项` : String(value)}
         </span>
       ))}
     </div>
@@ -122,8 +107,6 @@ export default async function LogsPage({ searchParams }: Props) {
   const level = params.level || undefined;
   const action = params.action || undefined;
   const { items, totalPages, total, byLevel } = await getSystemLogs(page, 30, { level, action });
-
-  const totalAll = (byLevel.info || 0) + (byLevel.warn || 0) + (byLevel.error || 0);
 
   function filterUrl(key: string, value: string | undefined) {
     const p = new URLSearchParams();
@@ -184,7 +167,7 @@ export default async function LogsPage({ searchParams }: Props) {
           <p>暂无日志记录</p>
         </div>
       ) : (
-        <div className="max-w-4xl mx-auto space-y-2">
+        <div className="max-w-4xl mx-auto space-y-1.5">
           {items.map((log) => {
             const lvCfg = levelConfig[log.level] || levelConfig.info;
             const actCfg = actionConfig[log.action];
@@ -197,21 +180,29 @@ export default async function LogsPage({ searchParams }: Props) {
             }
 
             return (
-              <div key={log.id} className={`rounded-lg border p-3 space-y-1.5 ${lvCfg.border}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 flex-shrink-0 rounded-full ${lvCfg.color}`} />
-                    <span className="inline-flex items-center gap-1.5 text-sm font-medium">
-                      {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
-                      {actCfg?.label || log.action}
-                    </span>
+              <div key={log.id} className={`rounded-lg border px-3 py-2.5 ${lvCfg.border}`}>
+                {/* Single-line header: dot + action + message + time */}
+                <div className="flex items-start gap-2">
+                  <span className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${lvCfg.color}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground flex-shrink-0">
+                        {Icon && <Icon className="h-3 w-3" />}
+                        {actCfg?.label || log.action}
+                      </span>
+                      <span className="text-sm truncate">{log.message}</span>
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap flex-shrink-0 ml-auto" title={log.createdAt || ""}>
+                        {formatDateTimeCST(log.createdAt)}
+                      </span>
+                    </div>
+                    {/* Extra detail only when it adds info beyond the message */}
+                    {detail && (
+                      <div className="mt-1">
+                        <LogDetail action={log.action} detail={detail} />
+                      </div>
+                    )}
                   </div>
-                  <span className="text-[11px] text-muted-foreground whitespace-nowrap" title={log.createdAt || ""}>
-                    {formatDateTimeCST(log.createdAt)}
-                  </span>
                 </div>
-                <p className="text-sm">{log.message}</p>
-                {detail && <LogDetail action={log.action} detail={detail} />}
               </div>
             );
           })}
