@@ -1330,6 +1330,12 @@ export async function getAllRatingHistory(options?: { page?: number; limit?: num
         title: mediaItems.title,
         posterPath: mediaItems.posterPath,
         mediaType: mediaItems.mediaType,
+        previousVoteAverage: sql<number | null>`(
+          SELECT rh2.vote_average FROM rating_history rh2
+          WHERE rh2.media_item_id = ${ratingHistory.mediaItemId}
+            AND rh2.recorded_at < ${ratingHistory.recordedAt}
+          ORDER BY rh2.recorded_at DESC LIMIT 1
+        )`,
       })
       .from(ratingHistory)
       .innerJoin(mediaItems, eq(ratingHistory.mediaItemId, mediaItems.id))

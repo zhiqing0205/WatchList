@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, Star } from "lucide-react";
+import { Loader2, Star, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getAllRatingHistory } from "@/app/admin/_actions/media";
@@ -17,6 +17,7 @@ interface RatingRecord {
   title: string;
   posterPath: string | null;
   mediaType: string;
+  previousVoteAverage: number | null;
 }
 
 function formatDateTime(dateStr: string | null) {
@@ -86,52 +87,69 @@ export function RatingHistoryFeed({
   }
 
   return (
-    <div className="space-y-0.5">
-      {items.map((item) => (
-        <div
-          key={item.id}
-          className="flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent/50"
-        >
-          {/* Poster */}
+    <div className="space-y-2">
+      {items.map((item) => {
+        const diff = item.previousVoteAverage != null
+          ? Math.round((item.voteAverage - item.previousVoteAverage) * 10) / 10
+          : null;
+
+        return (
           <Link
+            key={item.id}
             href={`/admin/library/${item.mediaItemId}`}
-            className="relative h-9 w-7 flex-shrink-0 overflow-hidden rounded"
+            className="flex gap-3 rounded-lg border p-2.5 transition-colors hover:bg-accent/30 sm:p-3"
           >
-            <Image
-              src={getImageUrl(item.posterPath, "w92")}
-              alt={item.title}
-              fill
-              className="object-cover"
-            />
-          </Link>
+            {/* Poster */}
+            <div className="relative h-14 w-10 flex-shrink-0 overflow-hidden rounded sm:h-16 sm:w-12">
+              <Image
+                src={getImageUrl(item.posterPath, "w92")}
+                alt={item.title}
+                fill
+                className="object-cover"
+              />
+            </div>
 
-          {/* Title */}
-          <Link
-            href={`/admin/library/${item.mediaItemId}`}
-            className="min-w-0 flex-1 truncate text-sm hover:text-primary"
-          >
-            {item.title}
-          </Link>
+            {/* Content */}
+            <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex items-center gap-1.5">
+                <p className="truncate text-sm font-medium">{item.title}</p>
+                <Badge variant="outline" className="flex-shrink-0 text-[10px]">
+                  {item.mediaType === "tv" ? "剧集" : "电影"}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                  <span className="font-mono text-sm font-semibold">
+                    {item.voteAverage.toFixed(1)}
+                  </span>
+                </div>
+                {diff !== null && diff !== 0 && (
+                  <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs font-medium ${
+                    diff > 0
+                      ? "bg-green-500/10 text-green-600"
+                      : "bg-red-500/10 text-red-500"
+                  }`}>
+                    {diff > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    {diff > 0 ? "+" : ""}{diff.toFixed(1)}
+                  </span>
+                )}
+                {diff === 0 && (
+                  <span className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                    <Minus className="h-3 w-3" />
+                    0.0
+                  </span>
+                )}
+              </div>
+            </div>
 
-          {/* Type */}
-          <Badge variant="outline" className="flex-shrink-0 text-[10px]">
-            {item.mediaType === "tv" ? "剧集" : "电影"}
-          </Badge>
-
-          {/* Rating */}
-          <div className="flex flex-shrink-0 items-center gap-1">
-            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-            <span className="font-mono text-sm font-medium">
-              {item.voteAverage.toFixed(1)}
+            {/* Time */}
+            <span className="flex-shrink-0 text-[10px] text-muted-foreground whitespace-nowrap self-start sm:text-xs">
+              {formatDateTime(item.recordedAt)}
             </span>
-          </div>
-
-          {/* Time */}
-          <span className="flex-shrink-0 text-[11px] text-muted-foreground">
-            {formatDateTime(item.recordedAt)}
-          </span>
-        </div>
-      ))}
+          </Link>
+        );
+      })}
 
       {/* Infinite scroll sentinel */}
       {hasMore && (
