@@ -1361,13 +1361,30 @@ export async function getAllRatingHistory(options?: { page?: number; limit?: num
       .from(ratingHistory),
   ]);
 
-  const [distinctMedia] = await db
-    .select({ count: sql<number>`count(DISTINCT ${ratingHistory.mediaItemId})` })
-    .from(ratingHistory);
+  const [distinctMedia, changedResult] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(DISTINCT ${ratingHistory.mediaItemId})` })
+      .from(ratingHistory),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(ratingHistory)
+      .where(sql`(
+        SELECT rh2.vote_average FROM rating_history rh2
+        WHERE rh2.media_item_id = ${ratingHistory.mediaItemId}
+          AND rh2.recorded_at < ${ratingHistory.recordedAt}
+        ORDER BY rh2.recorded_at DESC LIMIT 1
+      ) IS NOT NULL AND round((
+        SELECT rh2.vote_average FROM rating_history rh2
+        WHERE rh2.media_item_id = ${ratingHistory.mediaItemId}
+          AND rh2.recorded_at < ${ratingHistory.recordedAt}
+        ORDER BY rh2.recorded_at DESC LIMIT 1
+      ) * 10) != round(${ratingHistory.voteAverage} * 10)`),
+  ]);
 
   return {
     items: rows,
     total: countResult[0].count,
-    distinctMediaCount: distinctMedia.count,
+    distinctMediaCount: distinctMedia[0].count,
+    changedCount: changedResult[0].count,
   };
 }

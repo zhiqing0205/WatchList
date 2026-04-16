@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, Star, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Loader2, Star, TrendingUp, TrendingDown, Minus, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getAllRatingHistory } from "@/app/admin/_actions/media";
@@ -138,6 +138,12 @@ export function RatingHistoryFeed({
                   <span className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                     <Minus className="h-3 w-3" />
                     0.0
+                  </span>
+                )}
+                {diff === null && (
+                  <span className="inline-flex items-center gap-0.5 rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                    <Sparkles className="h-3 w-3" />
+                    首次入库
                   </span>
                 )}
               </div>

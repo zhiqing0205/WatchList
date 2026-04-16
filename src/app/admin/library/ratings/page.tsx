@@ -8,11 +8,6 @@ import { RatingHistoryFeed } from "../_components/rating-history-feed";
 export default async function RatingHistoryPage() {
   const data = await getAllRatingHistory({ page: 1, limit: 20 });
 
-  // Count records with changes
-  const changedCount = data.items.filter(
-    (r) => r.previousVoteAverage != null && Math.round(r.voteAverage * 10) !== Math.round((r.previousVoteAverage as number) * 10)
-  ).length;
-
   return (
     <div className="max-w-6xl mx-auto space-y-5">
       <div className="flex items-center justify-between">
@@ -40,7 +35,7 @@ export default async function RatingHistoryPage() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">有变化</p>
-              <p className="text-lg font-bold leading-none mt-0.5">{changedCount}</p>
+              <p className="text-lg font-bold leading-none mt-0.5">{data.changedCount}</p>
             </div>
           </CardContent>
         </Card>
