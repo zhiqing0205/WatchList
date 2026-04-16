@@ -153,15 +153,15 @@ export function RatingHistoryFeed({
 
       {/* Infinite scroll sentinel */}
       {hasMore && (
-        <div ref={sentinelRef} className="flex justify-center py-4">
+        <div ref={sentinelRef} className="col-span-full flex justify-center py-4">
           {loading && (
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           )}
         </div>
       )}
 
       {!hasMore && items.length > 0 && (
-        <p className="py-3 text-center text-xs text-muted-foreground">
+        <p className="col-span-full py-3 text-center text-xs text-muted-foreground">
           共 {total} 条记录
         </p>
       )}
