@@ -12,6 +12,8 @@ import {
   Pencil,
   Play,
   CheckCircle2,
+  EyeOff,
+  Eye,
 } from "lucide-react";
 
 const levelColors: Record<string, string> = {
@@ -26,11 +28,90 @@ const actionConfig: Record<string, { label: string; icon: typeof Plus }> = {
   media_edited: { label: "编辑影视", icon: Pencil },
   batch_deleted: { label: "批量删除", icon: Layers },
   batch_completed: { label: "批量完成", icon: CheckCircle2 },
+  batch_visibility: { label: "批量显隐", icon: EyeOff },
   progress_updated: { label: "进度更新", icon: Play },
   metadata_refetched: { label: "更新元数据", icon: RefreshCw },
   cron_metadata_refresh: { label: "定时更新", icon: Timer },
   manual_metadata_refresh: { label: "手动更新", icon: RefreshCw },
 };
+
+function LogDetail({ action, detail }: { action: string; detail: Record<string, unknown> }) {
+  // Batch operations with titles
+  if ((action === "batch_deleted" || action === "batch_completed") && Array.isArray(detail.titles)) {
+    return (
+      <div className="flex flex-wrap gap-1">
+        {(detail.titles as string[]).map((title, i) => (
+          <span key={i} className="rounded bg-muted px-1.5 py-0.5 text-[11px]">{title}</span>
+        ))}
+      </div>
+    );
+  }
+
+  // Metadata refresh results
+  if (action.includes("metadata") && detail.success !== undefined) {
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        <span className="rounded bg-green-500/10 px-2 py-0.5 text-[11px] font-medium text-green-600">
+          成功 {String(detail.success)}
+        </span>
+        {Number(detail.failed) > 0 && (
+          <span className="rounded bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-500">
+            失败 {String(detail.failed)}
+          </span>
+        )}
+        <span className="rounded bg-muted px-2 py-0.5 text-[11px]">
+          共 {String(detail.total)}
+        </span>
+        {detail.newRatings !== undefined && Number(detail.newRatings) > 0 && (
+          <span className="rounded bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-600">
+            新增评分 {String(detail.newRatings)}
+          </span>
+        )}
+        {Array.isArray(detail.errors) && detail.errors.length > 0 && (
+          <div className="w-full mt-1 space-y-0.5">
+            {(detail.errors as string[]).slice(0, 5).map((err, i) => (
+              <p key={i} className="text-[11px] text-red-500 truncate">{err}</p>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Status / field changes with from → to
+  if (detail.from !== undefined || detail.to !== undefined) {
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {Object.entries(detail).map(([key, value]) => {
+          if (value === null || value === undefined) return null;
+          return (
+            <span key={key} className="rounded bg-muted px-1.5 py-0.5 text-[11px]">
+              <span className="text-muted-foreground">{key}:</span>{" "}
+              <span className="font-medium">{String(value)}</span>
+            </span>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Fallback: render all key-value pairs
+  const entries = Object.entries(detail).filter(
+    ([, v]) => v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0)
+  );
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {entries.map(([key, value]) => (
+        <span key={key} className="rounded bg-muted px-1.5 py-0.5 text-[11px]">
+          <span className="text-muted-foreground">{key}:</span>{" "}
+          <span className="font-medium">{Array.isArray(value) ? `${value.length} 项` : String(value)}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 interface Props {
   searchParams: Promise<{ page?: string }>;
@@ -42,9 +123,9 @@ export default async function LogsPage({ searchParams }: Props) {
   const { items, totalPages, total } = await getSystemLogs(page, 50);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">系统日志</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">系统日志</h1>
         <span className="text-sm text-muted-foreground">共 {total} 条</span>
       </div>
 
@@ -53,62 +134,42 @@ export default async function LogsPage({ searchParams }: Props) {
           <p>暂无日志记录</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">级别</th>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">操作</th>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">内容</th>
-                <th className="px-3 py-2 text-right font-medium text-muted-foreground whitespace-nowrap">时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((log) => {
-                const color = levelColors[log.level] || levelColors.info;
-                const action = actionConfig[log.action];
-                const Icon = action?.icon;
-                let detail: Record<string, unknown> | null = null;
-                try {
-                  detail = log.detail ? JSON.parse(log.detail) : null;
-                } catch {
-                  // ignore
-                }
+        <div className="space-y-2">
+          {items.map((log) => {
+            const color = levelColors[log.level] || levelColors.info;
+            const action = actionConfig[log.action];
+            const Icon = action?.icon;
+            let detail: Record<string, unknown> | null = null;
+            try {
+              detail = log.detail ? JSON.parse(log.detail) : null;
+            } catch {
+              // ignore
+            }
 
-                return (
-                  <tr key={log.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="px-3 py-2.5">
-                      <span className={`inline-block h-2 w-2 rounded-full ${color}`} />
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                        {Icon && <Icon className="h-3 w-3" />}
-                        {action?.label || log.action}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <span className="text-sm">{log.message}</span>
-                      {detail && (
-                        <details className="mt-1">
-                          <summary className="cursor-pointer text-[10px] text-muted-foreground hover:text-foreground">
-                            详细信息
-                          </summary>
-                          <pre className="mt-1 overflow-auto rounded bg-muted p-2 text-[10px] leading-relaxed max-h-40">
-                            {JSON.stringify(detail, null, 2)}
-                          </pre>
-                        </details>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                      <span className="text-xs text-muted-foreground" title={log.createdAt || ""}>
-                        {formatDateTimeCST(log.createdAt)}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+            return (
+              <div key={log.id} className="rounded-lg border p-3 space-y-1.5 sm:p-4">
+                {/* Header: level + action + time */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 flex-shrink-0 rounded-full ${color}`} />
+                    <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+                      {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
+                      {action?.label || log.action}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground whitespace-nowrap" title={log.createdAt || ""}>
+                    {formatDateTimeCST(log.createdAt)}
+                  </span>
+                </div>
+
+                {/* Message */}
+                <p className="text-sm">{log.message}</p>
+
+                {/* Formatted detail */}
+                {detail && <LogDetail action={log.action} detail={detail} />}
+              </div>
+            );
+          })}
         </div>
       )}
 
