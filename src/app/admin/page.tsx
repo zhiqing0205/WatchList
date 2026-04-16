@@ -36,15 +36,14 @@ function HistoryDetail({ action, detail }: { action: string; detail: string | nu
   try {
     const d = JSON.parse(detail);
     switch (action) {
-      case "episode_watched": {
+      case "episode_watched":
         return (
           <div className="flex items-center gap-1.5">
-            {d.from && <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{d.from}</span>}
-            {d.from && <span className="text-xs text-muted-foreground">→</span>}
-            <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-xs font-medium text-primary">{d.to}</span>
+            {d.from && <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">{d.from}</span>}
+            {d.from && <span className="text-[11px] text-muted-foreground">→</span>}
+            <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] font-medium text-primary">{d.to}</span>
           </div>
         );
-      }
       case "status_changed": {
         const fromLabel = STATUS_LABELS[d.from as keyof typeof STATUS_LABELS] || d.from;
         const toLabel = STATUS_LABELS[d.to as keyof typeof STATUS_LABELS] || d.to;
@@ -53,34 +52,31 @@ function HistoryDetail({ action, detail }: { action: string; detail: string | nu
         return (
           <div className="flex items-center gap-1.5">
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium text-white ${fromColor}`}>{fromLabel}</span>
-            <span className="text-xs text-muted-foreground">→</span>
+            <span className="text-[11px] text-muted-foreground">→</span>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium text-white ${toColor}`}>{toLabel}</span>
           </div>
         );
       }
-      case "movie_watched": {
+      case "movie_watched":
         return (
-          <span className={`rounded px-2 py-0.5 text-xs font-medium ${d.watched ? "bg-green-500/10 text-green-600" : "bg-gray-500/10 text-gray-500"}`}>
+          <span className={`rounded px-2 py-0.5 text-[11px] font-medium ${d.watched ? "bg-green-500/10 text-green-600" : "bg-gray-500/10 text-gray-500"}`}>
             {d.watched ? "标记已看" : "标记未看"}
           </span>
         );
-      }
-      case "rating_changed": {
+      case "rating_changed":
         return (
           <div className="flex items-center gap-1.5">
-            <span className="rounded bg-muted px-1.5 py-0.5 text-xs">{d.from ?? "无"}</span>
-            <span className="text-xs text-muted-foreground">→</span>
-            <span className="rounded bg-purple-500/10 px-1.5 py-0.5 text-xs font-medium text-purple-600">{d.to ?? "无"}</span>
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[11px]">{d.from ?? "无"}</span>
+            <span className="text-[11px] text-muted-foreground">→</span>
+            <span className="rounded bg-purple-500/10 px-1.5 py-0.5 text-[11px] font-medium text-purple-600">{d.to ?? "无"}</span>
           </div>
         );
-      }
-      case "added": {
+      case "added":
         return (
-          <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+          <span className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
             {d.mediaType === "tv" ? "添加剧集" : "添加电影"}
           </span>
         );
-      }
       default:
         return null;
     }
@@ -93,11 +89,21 @@ export default async function AdminDashboard() {
   const stats = await getDashboardStats();
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">仪表盘</h1>
 
-      {/* Top stat cards */}
+      {/* Stat cards */}
       <div className="grid gap-3 grid-cols-2 sm:gap-4 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">影视总数</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground mt-0.5">剧集 {stats.byType.tv || 0} · 电影 {stats.byType.movie || 0}</p>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">近七日入库</CardTitle>
@@ -118,143 +124,121 @@ export default async function AdminDashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">影视总数</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground mt-0.5">剧集 {stats.byType.tv || 0} · 电影 {stats.byType.movie || 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">上次备份</CardTitle>
             <CloudUpload className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-lg font-bold">
-              {stats.lastBackupTime
-                ? formatDateTimeCST(stats.lastBackupTime)
-                : "未备份"}
+              {stats.lastBackupTime ? formatDateTimeCST(stats.lastBackupTime) : "未备份"}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts: Status pie + Tag bar */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="gap-2 py-3">
-          <CardHeader className="px-3 pb-0">
-            <CardTitle className="text-sm font-medium">状态分布</CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 pb-2">
-            <StatusPieChart
-              byStatus={stats.byStatus}
-              total={stats.total}
-              tvCount={stats.byType.tv || 0}
-              movieCount={stats.byType.movie || 0}
-            />
-          </CardContent>
-        </Card>
+      {/* Charts: asymmetric 3+2 grid on lg, stacked on mobile */}
+      <div className="grid gap-4 lg:grid-cols-5">
+        {/* Left column: trend charts */}
+        <div className="space-y-4 lg:col-span-3">
+          <Card className="gap-2 py-3">
+            <CardHeader className="px-4 pb-0">
+              <CardTitle className="text-sm font-medium">月度入库趋势</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-2">
+              <MonthlyAddChart data={stats.monthlyAdds} />
+            </CardContent>
+          </Card>
+          <Card className="gap-2 py-3">
+            <CardHeader className="px-4 pb-0">
+              <CardTitle className="text-sm font-medium">我的评分分布</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-2">
+              <RatingDistChart data={stats.ratingDistribution} />
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="gap-2 py-3">
-          <CardHeader className="px-3 pb-0">
-            <CardTitle className="text-sm font-medium">标签分布</CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 pb-2">
-            <TagBarChart data={stats.tagDistribution} />
-          </CardContent>
-        </Card>
+        {/* Right column: distributions */}
+        <div className="space-y-4 lg:col-span-2">
+          <Card className="gap-2 py-3">
+            <CardHeader className="px-4 pb-0">
+              <CardTitle className="text-sm font-medium">状态分布</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-2">
+              <StatusPieChart
+                byStatus={stats.byStatus}
+                total={stats.total}
+                tvCount={stats.byType.tv || 0}
+                movieCount={stats.byType.movie || 0}
+              />
+            </CardContent>
+          </Card>
+          <Card className="gap-2 py-3">
+            <CardHeader className="px-4 pb-0">
+              <CardTitle className="text-sm font-medium">标签分布</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-2">
+              <TagBarChart data={stats.tagDistribution} />
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Second row of charts: Monthly trend + Rating distribution */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="gap-2 py-3">
-          <CardHeader className="px-3 pb-0">
-            <CardTitle className="text-sm font-medium">月度入库趋势</CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 pb-2">
-            <MonthlyAddChart data={stats.monthlyAdds} />
-          </CardContent>
-        </Card>
+      {/* Recent activity — 2-column grid on lg */}
+      <div>
+        <h2 className="flex items-center gap-2 text-sm font-semibold mb-3">
+          <History className="h-4 w-4" />
+          最近动态
+        </h2>
+        <div className="grid gap-2 lg:grid-cols-2">
+          {stats.recentHistory.map((row) => {
+            const iconCfg = actionIcons[row.history.action];
+            const Icon = iconCfg?.icon || Film;
+            const iconColor = iconCfg?.color || "text-muted-foreground";
 
-        <Card className="gap-2 py-3">
-          <CardHeader className="px-3 pb-0">
-            <CardTitle className="text-sm font-medium">我的评分分布</CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 pb-2">
-            <RatingDistChart data={stats.ratingDistribution} />
-          </CardContent>
-        </Card>
+            return (
+              <Link
+                key={row.history.id}
+                href={`/admin/library/${row.history.mediaItemId}`}
+                className="flex gap-3 rounded-lg border p-2.5 transition-colors hover:bg-accent/30"
+              >
+                <div className="relative h-14 w-10 flex-shrink-0 overflow-hidden rounded-md sm:h-16 sm:w-11">
+                  {row.posterPath ? (
+                    <Image
+                      src={getImageUrl(row.posterPath, "w92")}
+                      alt={row.title}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-muted">
+                      <Film className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <p className="truncate text-sm font-medium">{row.title}</p>
+                    <span className="flex-shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
+                      {row.mediaType === "tv" ? "剧集" : "电影"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Icon className={`h-3 w-3 flex-shrink-0 ${iconColor}`} />
+                    <span className="text-[11px] font-medium">
+                      {actionLabels[row.history.action] || row.history.action}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">{formatShortDateCST(row.history.createdAt)}</span>
+                  </div>
+                  <HistoryDetail action={row.history.action} detail={row.history.detail} />
+                </div>
+              </Link>
+            );
+          })}
+          {stats.recentHistory.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted-foreground col-span-2">暂无记录</p>
+          )}
+        </div>
       </div>
-
-      {/* Recent activity — card-based layout */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm font-medium">
-            <History className="h-4 w-4" />
-            最近动态
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {stats.recentHistory.map((row) => {
-              const iconCfg = actionIcons[row.history.action];
-              const Icon = iconCfg?.icon || Film;
-              const iconColor = iconCfg?.color || "text-muted-foreground";
-
-              return (
-                <Link
-                  key={row.history.id}
-                  href={`/admin/library/${row.history.mediaItemId}`}
-                  className="flex gap-3 rounded-lg border p-2.5 transition-colors hover:bg-accent/30 sm:p-3"
-                >
-                  {/* Poster */}
-                  <div className="relative h-16 w-11 flex-shrink-0 overflow-hidden rounded-md sm:h-20 sm:w-14">
-                    {row.posterPath ? (
-                      <Image
-                        src={getImageUrl(row.posterPath, "w92")}
-                        alt={row.title}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-muted">
-                        <Film className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <p className="truncate text-sm font-medium">{row.title}</p>
-                      <span className="flex-shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                        {row.mediaType === "tv" ? "剧集" : "电影"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${iconColor}`} />
-                      <span className="text-xs font-medium">
-                        {actionLabels[row.history.action] || row.history.action}
-                      </span>
-                    </div>
-                    <HistoryDetail action={row.history.action} detail={row.history.detail} />
-                  </div>
-
-                  {/* Time */}
-                  <span className="text-[10px] text-muted-foreground flex-shrink-0 whitespace-nowrap self-start sm:text-xs">
-                    {formatShortDateCST(row.history.createdAt)}
-                  </span>
-                </Link>
-              );
-            })}
-            {stats.recentHistory.length === 0 && (
-              <p className="py-6 text-center text-sm text-muted-foreground">暂无记录</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

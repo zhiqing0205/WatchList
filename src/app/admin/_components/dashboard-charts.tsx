@@ -50,7 +50,7 @@ export function StatusPieChart({ byStatus, total, tvCount, movieCount }: StatusP
   return (
     <div className="flex flex-col items-center gap-3">
       {/* Donut with center label */}
-      <div className="relative h-40 w-40">
+      <div className="relative h-44 w-44">
         <div
           className="h-full w-full rounded-full"
           style={{
@@ -152,7 +152,7 @@ export function MonthlyAddChart({ data }: { data: { month: string; count: number
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={180}>
+    <ResponsiveContainer width="100%" height={220}>
       <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
         <XAxis dataKey="month" tick={{ fontSize: 11, className: "fill-muted-foreground" }} tickLine={false} axisLine={false} />
@@ -180,7 +180,7 @@ export function RatingDistChart({ data }: { data: { rating: number; count: numbe
   }
 
   return (
-    <ResponsiveContainer width="100%" height={180}>
+    <ResponsiveContainer width="100%" height={220}>
       <BarChart data={full} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
         <XAxis dataKey="rating" tick={{ fontSize: 11, className: "fill-muted-foreground" }} tickLine={false} axisLine={false} />
