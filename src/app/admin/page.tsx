@@ -149,7 +149,7 @@ export default async function AdminDashboard() {
           </Card>
           <Card className="gap-2 py-3">
             <CardHeader className="px-4 pb-0">
-              <CardTitle className="text-sm font-medium">我的评分分布</CardTitle>
+              <CardTitle className="text-sm font-medium">TMDB 评分分布</CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-2">
               <RatingDistChart data={stats.ratingDistribution} />
@@ -189,7 +189,7 @@ export default async function AdminDashboard() {
           <History className="h-4 w-4" />
           最近动态
         </h2>
-        <div className="grid gap-2 lg:grid-cols-2">
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
           {stats.recentHistory.map((row) => {
             const iconCfg = actionIcons[row.history.action];
             const Icon = iconCfg?.icon || Film;
@@ -235,7 +235,7 @@ export default async function AdminDashboard() {
             );
           })}
           {stats.recentHistory.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground col-span-2">暂无记录</p>
+            <p className="py-6 text-center text-sm text-muted-foreground col-span-full">暂无记录</p>
           )}
         </div>
       </div>

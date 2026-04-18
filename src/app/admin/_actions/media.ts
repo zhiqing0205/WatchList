@@ -960,15 +960,15 @@ export async function getDashboardStats() {
     .from(mediaItems)
     .groupBy(mediaItems.mediaType);
 
-  // Rating distribution
+  // Rating distribution — based on TMDB voteAverage floored to integer (1-10 buckets)
   const ratingCounts = await db
     .select({
-      rating: mediaItems.rating,
+      rating: sql<number>`CAST(${mediaItems.voteAverage} AS INTEGER)`,
       count: sql<number>`count(*)`,
     })
     .from(mediaItems)
-    .where(sql`${mediaItems.rating} IS NOT NULL`)
-    .groupBy(mediaItems.rating);
+    .where(sql`${mediaItems.voteAverage} IS NOT NULL AND ${mediaItems.voteAverage} > 0`)
+    .groupBy(sql`CAST(${mediaItems.voteAverage} AS INTEGER)`);
 
   // Tag distribution — count media items per user-managed tag
   const tagCounts = await db
